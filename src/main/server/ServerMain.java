@@ -1,4 +1,4 @@
-package main.java.server;
+package main.server;
 
 public class ServerMain {
 
@@ -8,7 +8,7 @@ public class ServerMain {
 
         try {
             // Create and start the main auction server
-            main.java.server.AuctionServer server = new main.java.server.AuctionServer(port);
+            AuctionServer server = new AuctionServer(port);
             System.out.println("Attempting to start Auction Server on port " + port);
             server.start();
 

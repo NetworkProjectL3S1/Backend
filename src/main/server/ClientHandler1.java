@@ -1,19 +1,19 @@
-package main.java.server;
+package main.server;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
-public class ClientHandler {
+public class ClientHandler1 {
 
     private final SocketChannel channel;
-    private final main.java.server.AuctionServer server;
+    private final AuctionServer server;
     private final ByteBuffer readBuffer = ByteBuffer.allocate(1024);
 
     // We'll use a simple line-based protocol (messages end with \n)
     private final StringBuilder messageBuffer = new StringBuilder();
 
-    public ClientHandler(SocketChannel channel, main.java.server.AuctionServer server) {
+    public ClientHandler1(SocketChannel channel, AuctionServer server) {
         this.channel = channel;
         this.server = server;
     }

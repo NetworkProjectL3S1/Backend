@@ -1,7 +1,7 @@
-package main.java.server;
+package main.server;
 
-import main.java.model.Bid;
-import main.java.model.Auction;
+import main.model.Bid;
+import main.model.Auction;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -15,7 +15,7 @@ public class AuctionServer {
 
     private final int port;
     private final Selector selector;
-    private final Map<SocketChannel, ClientHandler> clients = new HashMap<>();
+    private final Map<SocketChannel, ClientHandler1> clients = new HashMap<>();
 
     // --- Managers ---
     private final AuctionManager auctionManager;
@@ -51,7 +51,7 @@ public class AuctionServer {
                     if (key.isAcceptable()) {
                         acceptNewClient(key);
                     } else if (key.isReadable()) {
-                        ClientHandler handler = (ClientHandler) key.attachment();
+                        ClientHandler1 handler = (ClientHandler1) key.attachment();
                         if (handler != null) {
                             handler.read();
                         }
@@ -68,7 +68,7 @@ public class AuctionServer {
         ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
         SocketChannel clientChannel = ssc.accept();
         clientChannel.configureBlocking(false);
-        ClientHandler handler = new ClientHandler(clientChannel, this);
+        ClientHandler1 handler = new ClientHandler1(clientChannel, this);
         clientChannel.register(selector, SelectionKey.OP_READ, handler);
         clients.put(clientChannel, handler);
         System.out.println("New client connected: " + handler.getRemoteAddress());
@@ -78,7 +78,7 @@ public class AuctionServer {
     /**
      * This is the main "router". It just directs messages to the right handler.
      */
-    public void processClientMessage(ClientHandler sender, String message) {
+    public void processClientMessage(ClientHandler1 sender, String message) {
         if (message.startsWith("BID:")) {
             handleBid(sender, message);
         } else if (message.startsWith("WATCH:")) {
@@ -91,7 +91,7 @@ public class AuctionServer {
     /**
      * Handles a client's request to watch an auction.
      */
-    private void handleWatch(ClientHandler sender, String message) {
+    private void handleWatch(ClientHandler1 sender, String message) {
         try {
             String auctionId = message.split(":")[1];
             Auction auction = auctionManager.getAuction(auctionId);
@@ -110,7 +110,7 @@ public class AuctionServer {
     /**
      * Handles an incoming bid message (Member 3's logic).
      */
-    private void handleBid(ClientHandler sender, String message) {
+    private void handleBid(ClientHandler1 sender, String message) {
         try {
             String[] parts = message.split(":");
             String auctionId = parts[1];
@@ -150,7 +150,7 @@ public class AuctionServer {
     // The old "broadcast" method is no longer needed here.
     // The BidBroadcaster is smart enough to do it.
 
-    public void clientDisconnected(ClientHandler handler) {
+    public void clientDisconnected(ClientHandler1 handler) {
         clients.remove(handler.getChannel());
         // TODO: Should also remove this handler from all auction "watcher" lists
         System.out.println("Client disconnected: " + handler.getRemoteAddress());

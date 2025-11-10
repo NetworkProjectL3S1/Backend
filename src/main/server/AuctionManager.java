@@ -1,6 +1,6 @@
-package main.java.server;
+package main.server;
 
-import main.java.model.Auction;
+import main.model.Auction;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -24,7 +24,7 @@ public class AuctionManager {
      * Removes a specific ClientHandler from the watcher list of ALL auctions.
      * This is used for cleanup when a client disconnects.
      */
-    public void removeWatcherFromAllAuctions(ClientHandler handler) {
+    public void removeWatcherFromAllAuctions(ClientHandler1 handler) {
         for (Auction auction : activeAuctions.values()) {
             auction.removeWatcher(handler);
         }
