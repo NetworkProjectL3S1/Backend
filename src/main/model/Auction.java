@@ -2,14 +2,13 @@ package main.model;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.List;
-import main.server.ClientHandler1;
 
 public class Auction {
     private String auctionId;
     private String itemName;
     private double currentHighestBid;
 
-    private List<ClientHandler1> watchers = new CopyOnWriteArrayList<>();
+    private List<main.server.AuctionClientHandler> watchers = new CopyOnWriteArrayList<>();
 
     public Auction(String auctionId, String itemName, double basePrice) {
         this.auctionId = auctionId;
@@ -31,15 +30,15 @@ public class Auction {
     }
 
     // --- Watcher Logic ---
-    public void addWatcher(ClientHandler1 client) {
+    public void addWatcher(main.server.AuctionClientHandler client) {
         watchers.add(client);
     }
 
-    public void removeWatcher(ClientHandler1 client) {
+    public void removeWatcher(main.server.AuctionClientHandler client) {
         watchers.remove(client);
     }
 
-    public List<ClientHandler1> getWatchers() {
+    public List<main.server.AuctionClientHandler> getWatchers() {
         return watchers;
     }
 }

@@ -11,15 +11,16 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+
 public class AuctionServer {
 
     private final int port;
     private final Selector selector;
-    private final Map<SocketChannel, ClientHandler1> clients = new HashMap<>();
+    private final Map<SocketChannel, main.server.AuctionClientHandler> clients = new HashMap<>();
 
     // --- Managers ---
-    private final AuctionManager auctionManager;
-    private final BidBroadcaster bidBroadcaster;
+    private final main.server.AuctionManager auctionManager;
+    private final main.server.BidBroadcaster bidBroadcaster;
 
     public AuctionServer(int port) throws IOException {
         this.port = port;
@@ -30,8 +31,8 @@ public class AuctionServer {
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 
         // --- Initialize managers ---
-        this.auctionManager = new AuctionManager();
-        this.bidBroadcaster = new BidBroadcaster(); // No longer needs server reference
+        this.auctionManager = new main.server.AuctionManager();
+        this.bidBroadcaster = new main.server.BidBroadcaster(); // No longer needs server reference
 
         // --- FOR TESTING: Create a fake auction on startup ---
         Auction testAuction = new Auction("auction-1", "Test Item", 100.00);
@@ -51,7 +52,7 @@ public class AuctionServer {
                     if (key.isAcceptable()) {
                         acceptNewClient(key);
                     } else if (key.isReadable()) {
-                        ClientHandler1 handler = (ClientHandler1) key.attachment();
+                        main.server.AuctionClientHandler handler = (main.server.AuctionClientHandler) key.attachment();
                         if (handler != null) {
                             handler.read();
                         }
@@ -68,7 +69,7 @@ public class AuctionServer {
         ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
         SocketChannel clientChannel = ssc.accept();
         clientChannel.configureBlocking(false);
-        ClientHandler1 handler = new ClientHandler1(clientChannel, this);
+        main.server.AuctionClientHandler handler = new main.server.AuctionClientHandler(clientChannel, this);
         clientChannel.register(selector, SelectionKey.OP_READ, handler);
         clients.put(clientChannel, handler);
         System.out.println("New client connected: " + handler.getRemoteAddress());
@@ -78,7 +79,7 @@ public class AuctionServer {
     /**
      * This is the main "router". It just directs messages to the right handler.
      */
-    public void processClientMessage(ClientHandler1 sender, String message) {
+    public void processClientMessage(main.server.AuctionClientHandler sender, String message) {
         if (message.startsWith("BID:")) {
             handleBid(sender, message);
         } else if (message.startsWith("WATCH:")) {
@@ -91,7 +92,7 @@ public class AuctionServer {
     /**
      * Handles a client's request to watch an auction.
      */
-    private void handleWatch(ClientHandler1 sender, String message) {
+    private void handleWatch(main.server.AuctionClientHandler sender, String message) {
         try {
             String auctionId = message.split(":")[1];
             Auction auction = auctionManager.getAuction(auctionId);
@@ -110,7 +111,7 @@ public class AuctionServer {
     /**
      * Handles an incoming bid message (Member 3's logic).
      */
-    private void handleBid(ClientHandler1 sender, String message) {
+    private void handleBid(main.server.AuctionClientHandler sender, String message) {
         try {
             String[] parts = message.split(":");
             String auctionId = parts[1];
@@ -150,7 +151,7 @@ public class AuctionServer {
     // The old "broadcast" method is no longer needed here.
     // The BidBroadcaster is smart enough to do it.
 
-    public void clientDisconnected(ClientHandler1 handler) {
+    public void clientDisconnected(main.server.AuctionClientHandler handler) {
         clients.remove(handler.getChannel());
         // TODO: Should also remove this handler from all auction "watcher" lists
         System.out.println("Client disconnected: " + handler.getRemoteAddress());

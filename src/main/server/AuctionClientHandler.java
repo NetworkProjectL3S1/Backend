@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
-public class ClientHandler1 {
+public class AuctionClientHandler {
 
     private final SocketChannel channel;
     private final AuctionServer server;
@@ -13,7 +13,7 @@ public class ClientHandler1 {
     // We'll use a simple line-based protocol (messages end with \n)
     private final StringBuilder messageBuffer = new StringBuilder();
 
-    public ClientHandler1(SocketChannel channel, AuctionServer server) {
+    public AuctionClientHandler(SocketChannel channel, AuctionServer server) {
         this.channel = channel;
         this.server = server;
     }

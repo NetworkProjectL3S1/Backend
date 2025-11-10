@@ -14,7 +14,7 @@ public class BidBroadcaster {
      * This is YOUR main method. It's now much "smarter".
      * It's called after a bid is successfully validated and placed.
      */
-    public void handleNewBid(Auction auction, Bid bid, ClientHandler1 sender) {
+    public void handleNewBid(Auction auction, Bid bid, AuctionClientHandler sender) {
 
         // 1. Get the formatted message
         String broadcastMessage = bid.toBroadcastString();
@@ -22,7 +22,7 @@ public class BidBroadcaster {
 
         // 2. Get the specific list of watchers for THIS auction
         //    (This is the key change!)
-        for (ClientHandler1 watcher : auction.getWatchers()) {
+        for (AuctionClientHandler watcher : auction.getWatchers()) {
 
             // Send to everyone in the "room" (except the sender)
             if (watcher != sender) {

@@ -24,7 +24,7 @@ public class AuctionManager {
      * Removes a specific ClientHandler from the watcher list of ALL auctions.
      * This is used for cleanup when a client disconnects.
      */
-    public void removeWatcherFromAllAuctions(ClientHandler1 handler) {
+    public void removeWatcherFromAllAuctions(AuctionClientHandler handler) {
         for (Auction auction : activeAuctions.values()) {
             auction.removeWatcher(handler);
         }
