@@ -13,3 +13,6 @@
 # IntelliJ IDEA files
 .idea/
 *.iml
+
+# macOS
+.DS_Store
