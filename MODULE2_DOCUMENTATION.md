@@ -171,7 +171,7 @@ Auction auction = manager.createAuction(
 
 ```bash
 # Start the test client
-java -cp bin main.client.AuctionCreatorClient localhost 9999
+java -cp bin main.client.AuctionCreatorClient localhost 8080
 
 # Use the interactive menu
 > create
@@ -279,7 +279,7 @@ chatHandler.sendMessage(auctionInfo);
 javac -d bin src/main/client/AuctionCreatorClient.java src/main/model/*.java
 
 # Run
-java -cp bin main.client.AuctionCreatorClient localhost 9999
+java -cp bin main.client.AuctionCreatorClient localhost 8080
 ```
 
 ### Test Scenarios
