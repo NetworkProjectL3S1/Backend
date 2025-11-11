@@ -59,7 +59,7 @@ java -cp bin main.server.ServerMain
 
 ```bash
 # Open Terminal 2
-java -cp bin main.client.AuctionCreatorClient localhost 9999
+java -cp bin main.client.AuctionCreatorClient localhost 8080
 ```
 
 **Step 3: Use the Interactive Menu**
@@ -251,7 +251,7 @@ type data\auctions\auction-1.txt
 java -cp bin main.server.ServerMain
 
 # Terminal 2: Client
-java -cp bin main.client.AuctionCreatorClient localhost 9999
+java -cp bin main.client.AuctionCreatorClient localhost 8080
 ```
 
 ### 4. Create Live Auction
@@ -354,7 +354,7 @@ javac -encoding UTF-8 -d bin -sourcepath src src/main/test/AuctionCreationTest.j
 
 ```bash
 # 1. Create some auctions
-java -cp bin main.client.AuctionCreatorClient localhost 9999
+java -cp bin main.client.AuctionCreatorClient localhost 8080
 # Create 2-3 auctions, then quit
 
 # 2. Stop server (Ctrl+C)
@@ -363,7 +363,7 @@ java -cp bin main.client.AuctionCreatorClient localhost 9999
 java -cp bin main.server.ServerMain
 
 # 4. Reconnect client
-java -cp bin main.client.AuctionCreatorClient localhost 9999
+java -cp bin main.client.AuctionCreatorClient localhost 8080
 
 # 5. List auctions - should still be there!
 > list
@@ -373,7 +373,7 @@ java -cp bin main.client.AuctionCreatorClient localhost 9999
 
 ```bash
 # Open 3 terminals, all running:
-java -cp bin main.client.AuctionCreatorClient localhost 9999
+java -cp bin main.client.AuctionCreatorClient localhost 8080
 
 # Create auctions from different clients simultaneously
 # All clients should see all new auctions
