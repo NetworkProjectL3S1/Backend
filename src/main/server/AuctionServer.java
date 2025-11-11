@@ -11,7 +11,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-
 public class AuctionServer {
 
     private final int port;
@@ -32,11 +31,8 @@ public class AuctionServer {
 
         // --- Initialize managers ---
         this.auctionManager = new main.server.AuctionManager();
-        this.bidBroadcaster = new main.server.BidBroadcaster(); // No longer needs server reference
-
-        // --- FOR TESTING: Create a fake auction on startup ---
-        Auction testAuction = new Auction("auction-1", "Test Item", 100.00);
-        this.auctionManager.createAuction(testAuction);
+        this.auctionManager.setServer(this); // Set server reference for broadcasting
+        this.bidBroadcaster = new main.server.BidBroadcaster();
     }
 
     public void start() {
@@ -83,8 +79,13 @@ public class AuctionServer {
         if (message.startsWith("BID:")) {
             handleBid(sender, message);
         } else if (message.startsWith("WATCH:")) {
-            // New command: "WATCH:auction-1"
             handleWatch(sender, message);
+        } else if (message.startsWith("CREATE_AUCTION:")) {
+            handleCreateAuction(sender, message);
+        } else if (message.startsWith("LIST_AUCTIONS")) {
+            handleListAuctions(sender, message);
+        } else if (message.startsWith("GET_AUCTION:")) {
+            handleGetAuction(sender, message);
         }
         // ... other commands like "LOGIN:", "CHAT:", etc.
     }
@@ -126,8 +127,8 @@ public class AuctionServer {
 
             // Check if the user is even watching this auction
             // if (!auction.getWatchers().contains(sender)) {
-            //     sender.write("ERROR: You must watch an auction to bid.");
-            //     return;
+            // sender.write("ERROR: You must watch an auction to bid.");
+            // return;
             // }
 
             Bid bid = new Bid(auctionId, userId, amount);
@@ -151,9 +152,151 @@ public class AuctionServer {
     // The old "broadcast" method is no longer needed here.
     // The BidBroadcaster is smart enough to do it.
 
+    /**
+     * Handle CREATE_AUCTION command
+     * Format:
+     * CREATE_AUCTION:itemName:description:sellerId:basePrice:durationMinutes:category
+     * Module 2: Auction Creation
+     */
+    private void handleCreateAuction(main.server.AuctionClientHandler sender, String message) {
+        try {
+            // Parse the message
+            String[] parts = message.split(":", 7); // Limit to 7 parts to preserve description with colons
+
+            if (parts.length < 7) {
+                sender.write(
+                        "ERROR: Invalid CREATE_AUCTION format. Use CREATE_AUCTION:itemName:description:sellerId:basePrice:durationMinutes:category");
+                return;
+            }
+
+            String itemName = parts[1];
+            String description = parts[2];
+            String sellerId = parts[3];
+            double basePrice = Double.parseDouble(parts[4]);
+            long durationMinutes = Long.parseLong(parts[5]);
+            String category = parts[6];
+
+            // Validate parameters
+            if (itemName.isEmpty() || sellerId.isEmpty()) {
+                sender.write("ERROR: Item name and seller ID cannot be empty");
+                return;
+            }
+
+            if (basePrice <= 0) {
+                sender.write("ERROR: Base price must be greater than 0");
+                return;
+            }
+
+            if (durationMinutes <= 0) {
+                sender.write("ERROR: Duration must be greater than 0");
+                return;
+            }
+
+            // Create the auction using AuctionManager
+            Auction newAuction = auctionManager.createAuction(
+                    itemName, description, sellerId, basePrice, durationMinutes, category);
+
+            // Send confirmation to creator
+            sender.write("AUCTION_CREATED:" + newAuction.getAuctionId() + ":" + itemName);
+            sender.write(newAuction.toDetailString());
+
+            System.out.println("[Server] Auction created: " + newAuction.getAuctionId() +
+                    " by " + sellerId);
+
+        } catch (NumberFormatException e) {
+            sender.write("ERROR: Invalid number format in CREATE_AUCTION command");
+        } catch (Exception e) {
+            sender.write("ERROR: Failed to create auction: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Handle LIST_AUCTIONS command
+     * Format: LIST_AUCTIONS or LIST_AUCTIONS:category
+     */
+    private void handleListAuctions(main.server.AuctionClientHandler sender, String message) {
+        try {
+            String[] parts = message.split(":");
+
+            java.util.Collection<Auction> auctions;
+
+            if (parts.length > 1 && !parts[1].isEmpty()) {
+                // List auctions by category
+                String category = parts[1];
+                auctions = auctionManager.getAuctionsByCategory(category);
+                sender.write("AUCTIONS_LIST:category:" + category);
+            } else {
+                // List all active auctions
+                auctions = auctionManager.getActiveAuctions();
+                sender.write("AUCTIONS_LIST:all");
+            }
+
+            if (auctions.isEmpty()) {
+                sender.write("NO_AUCTIONS");
+            } else {
+                for (Auction auction : auctions) {
+                    sender.write(auction.toBroadcastString());
+                }
+            }
+
+            sender.write("AUCTIONS_LIST_END");
+
+        } catch (Exception e) {
+            sender.write("ERROR: Failed to list auctions: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Handle GET_AUCTION command
+     * Format: GET_AUCTION:auctionId
+     */
+    private void handleGetAuction(main.server.AuctionClientHandler sender, String message) {
+        try {
+            String[] parts = message.split(":");
+            if (parts.length < 2) {
+                sender.write("ERROR: Invalid GET_AUCTION format. Use GET_AUCTION:auctionId");
+                return;
+            }
+
+            String auctionId = parts[1];
+            Auction auction = auctionManager.getAuction(auctionId);
+
+            if (auction != null) {
+                sender.write(auction.toDetailString());
+            } else {
+                sender.write("ERROR: Auction not found: " + auctionId);
+            }
+
+        } catch (Exception e) {
+            sender.write("ERROR: Failed to get auction: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Broadcast a new auction to all connected clients
+     * Called by AuctionManager when a new auction is created
+     */
+    public void broadcastNewAuction(Auction auction) {
+        String broadcastMsg = auction.toBroadcastString();
+
+        System.out.println("[Server] Broadcasting new auction: " + auction.getAuctionId());
+
+        for (main.server.AuctionClientHandler client : clients.values()) {
+            client.write(broadcastMsg);
+        }
+    }
+
     public void clientDisconnected(main.server.AuctionClientHandler handler) {
         clients.remove(handler.getChannel());
-        // TODO: Should also remove this handler from all auction "watcher" lists
+        auctionManager.removeWatcherFromAllAuctions(handler);
         System.out.println("Client disconnected: " + handler.getRemoteAddress());
+    }
+
+    /**
+     * Get the auction manager (for testing or external access)
+     */
+    public AuctionManager getAuctionManager() {
+        return auctionManager;
     }
 }
