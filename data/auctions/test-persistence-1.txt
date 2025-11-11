@@ -1,0 +1,13 @@
+=== AUCTION DETAILS ===
+ID: test-persistence-1
+Item: Test Item
+Description: Testing file persistence
+Seller: testseller
+Base Price: $100.0
+Current Bid: $100.0
+Highest Bidder: None
+Category: test
+Status: ACTIVE
+Time Remaining: 1799 seconds
+Created: Tue Nov 11 11:59:43 IST 2025
+Ends: Tue Nov 11 12:29:43 IST 2025

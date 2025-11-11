@@ -1,0 +1,13 @@
+=== AUCTION DETAILS ===
+ID: auction-18
+Item: sdf
+Description: fsdf
+Seller: fsd
+Base Price: $10.0
+Current Bid: $10.0
+Highest Bidder: None
+Category: fsd
+Status: ACTIVE
+Time Remaining: 599 seconds
+Created: Tue Nov 11 12:14:36 IST 2025
+Ends: Tue Nov 11 12:24:36 IST 2025

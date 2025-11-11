@@ -1,0 +1,13 @@
+=== AUCTION DETAILS ===
+ID: auction-16
+Item: Item to close
+Description: Will be closed manually
+Seller: seller
+Base Price: $100.0
+Current Bid: $100.0
+Highest Bidder: None
+Category: test
+Status: ACTIVE
+Time Remaining: 3599 seconds
+Created: Tue Nov 11 11:59:43 IST 2025
+Ends: Tue Nov 11 12:59:43 IST 2025

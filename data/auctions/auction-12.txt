@@ -1,0 +1,13 @@
+=== AUCTION DETAILS ===
+ID: auction-12
+Item: Item 1
+Description: Electronics item
+Seller: seller1
+Base Price: $100.0
+Current Bid: $100.0
+Highest Bidder: None
+Category: electronics
+Status: ACTIVE
+Time Remaining: 3599 seconds
+Created: Tue Nov 11 11:59:43 IST 2025
+Ends: Tue Nov 11 12:59:43 IST 2025

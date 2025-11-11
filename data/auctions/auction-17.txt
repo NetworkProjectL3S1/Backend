@@ -1,0 +1,13 @@
+=== AUCTION DETAILS ===
+ID: auction-17
+Item: dsfsdf
+Description: fsfs
+Seller: dsfsdf
+Base Price: $100.0
+Current Bid: $100.0
+Highest Bidder: None
+Category: xX
+Status: ACTIVE
+Time Remaining: 5999 seconds
+Created: Tue Nov 11 12:13:50 IST 2025
+Ends: Tue Nov 11 13:53:50 IST 2025
