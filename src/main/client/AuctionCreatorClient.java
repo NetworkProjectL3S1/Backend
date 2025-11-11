@@ -304,7 +304,7 @@ public class AuctionCreatorClient {
 
     public static void main(String[] args) {
         String host = "localhost";
-        int port = 9999;
+        int port = 8080; // Default port to match AuctionServer
 
         if (args.length >= 2) {
             host = args[0];
