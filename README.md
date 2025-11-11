@@ -1,18 +1,33 @@
-# Java WebSocket Chat Bot
+# Real-Time Auction Platform (Backend)
 
-A comprehensive pure Java implementation of a chat bot system using WebSockets and multithreading. This project demonstrates advanced networking concepts, concurrent programming, and WebSocket protocol implementation without external dependencies.
+A comprehensive Java implementation of a real-time auction platform with WebSocket communication, multithreading, and Java NIO. This project demonstrates advanced networking concepts, concurrent programming, file persistence, and client-server architecture.
 
 ## 🚀 Features
 
+### Auction System (Module 2)
+
+- **Auction Creation**: Sellers can create auctions with configurable parameters
+- **Real-Time Broadcasting**: New auctions broadcast to all connected clients
+- **File Persistence**: Auctions saved using Java I/O with automatic backup
+- **Category Management**: Filter and browse auctions by category
+- **Time-Based Management**: Automatic auction expiration and status tracking
+- **Thread-Safe Operations**: Concurrent auction creation and bidding
+
+### Chat System
+
 - **WebSocket Communication**: Full WebSocket protocol implementation from scratch
 - **Multithreading**: Advanced thread pool management for concurrent connections
-- **Chat Bot Intelligence**: Smart bot with pattern recognition and contextual responses  
+- **Chat Bot Intelligence**: Smart bot with pattern recognition and contextual responses
 - **User Management**: Complete session management and user tracking
 - **Message Broadcasting**: Real-time message distribution to all connected clients
 - **Command System**: Rich command interface with multiple bot interactions
-- **Web Client**: Beautiful HTML/JavaScript client for browser-based chat
-- **Console Client**: Full-featured Java console client for testing
-- **Thread Safety**: Proper concurrent programming with thread-safe collections
+
+### Real-Time Bidding
+
+- **Live Bid Updates**: Instant bid notifications using Java NIO
+- **Thread-Safe Bidding**: Synchronized bid placement with validation
+- **Watcher System**: Clients can watch specific auctions for updates
+- **Bid Broadcasting**: Real-time updates to all auction watchers
 
 ## Project Structure
 
@@ -20,135 +35,170 @@ A comprehensive pure Java implementation of a chat bot system using WebSockets a
 src/
 ├── main/
 │   ├── server/
-│   │   ├── ChatServer.java           # Main WebSocket server
-│   │   ├── ClientHandler.java        # Individual client connection handler
-│   │   ├── ChatBot.java             # Bot logic and responses
-│   │   └── UserManager.java         # User session management
+│   │   ├── AuctionServer.java          # Main NIO auction server
+│   │   ├── AuctionManager.java         # [MODULE 2] Auction lifecycle management
+│   │   ├── AuctionClientHandler.java   # Individual client connection handler
+│   │   ├── BidBroadcaster.java        # Real-time bid broadcasting
+│   │   ├── ChatServer.java            # WebSocket chat server
+│   │   ├── ClientHandler.java         # Chat client handler
+│   │   ├── ChatBot.java              # Bot logic and responses
+│   │   ├── UserManager.java          # User session management
+│   │   └── ServerMain.java           # Server entry point
 │   ├── client/
-│   │   └── ChatClient.java          # Test client for connecting to server
+│   │   ├── AuctionCreatorClient.java  # [MODULE 2] Test client for auctions
+│   │   └── ChatClient.java           # Test client for chat
 │   ├── model/
-│   │   ├── User.java               # User model
-│   │   ├── Message.java            # Message model
-│   │   └── Command.java            # Command model
+│   │   ├── Auction.java              # [MODULE 2] Enhanced auction model
+│   │   ├── Bid.java                  # Bid model
+│   │   ├── User.java                 # User model
+│   │   ├── Message.java              # Message model
+│   │   └── Command.java              # Command model
 │   └── util/
-│       ├── WebSocketUtil.java      # WebSocket utility functions
-│       └── ThreadPoolManager.java  # Thread pool management
+│       ├── AuctionFileStorage.java   # [MODULE 2] File I/O persistence
+│       ├── WebSocketUtil.java        # WebSocket utility functions
+│       ├── ThreadPoolManager.java    # Thread pool management
+│       └── ConfigManager.java        # Configuration management
 └── test/
-    └── ChatServerTest.java         # Basic tests
+    └── ChatServerTest.java           # Basic tests
+
+data/
+├── auctions/                         # Auction data storage
+│   ├── *.dat                        # Binary auction files
+│   ├── *.txt                        # Text exports
+│   └── index.dat                    # Auction index
+└── backups/                         # Backup storage
+    └── auctions_backup_*.dat
 ```
 
 ## 🏃‍♂️ Quick Start
 
-### Method 1: Using Make (Recommended)
+### Method 1: Using Shell Scripts (Recommended)
+
+```bash
+# Compile the project
+./compile.sh
+
+# Start the auction server
+./start-server.sh
+
+# In another terminal, start the auction creator client
+./start-auction-creator.sh
+# OR on Windows:
+start-auction-creator.bat
+```
+
+### Method 2: Using Make
+
 ```bash
 # Compile the project
 make compile
 
-# Start the server (default port 8080)
+# Start the server (default port 9999)
 make server
 
-# In another terminal, start a client
-make client
-
-# Run tests
-make test
-```
-
-### Method 2: Using Shell Scripts
-```bash
-# Compile and start server
-./compile.sh
-./start-server.sh [port]
-
-# Start client in another terminal
-./start-client.sh [host] [port]
+# Start auction client
+java -cp bin main.client.AuctionCreatorClient localhost 9999
 ```
 
 ### Method 3: Manual Commands
+
 ```bash
 # Compile
-javac -d build src/main/**/*.java
+javac -d bin src/main/**/*.java
 
-# Run server
-java -cp build main.server.ChatServer [port]
+# Run auction server
+java -cp bin main.server.ServerMain
 
-# Run client  
-java -cp build main.client.ChatClient [host] [port]
+# Run auction creator client
+java -cp bin main.client.AuctionCreatorClient localhost 9999
 ```
 
-### Method 4: Web Client
-1. Start the server with any method above
-2. Open `web-client.html` in your browser
-3. Enter username and start chatting!
+## 📝 Module 2: Auction Creation Usage
 
-## WebSocket Protocol
+### Creating an Auction (Interactive Client)
 
-The server runs on `ws://localhost:8080/chat`
-
-### Message Format
-```json
-{
-  "type": "message|command|join|leave",
-  "username": "string",
-  "content": "string",
-  "timestamp": "long"
-}
-```
-
-### Available Commands
-- `/help` - Show available commands
-- `/users` - List connected users
-- `/time` - Get current server time
-- `/bot <message>` - Talk directly to the bot
-- `/quit` - Disconnect from server
-
-## 🧪 Testing Multithreading
-
-### Concurrent Users Test
 ```bash
-# Terminal 1: Start server
-make server
+# Start the client
+java -cp bin main.client.AuctionCreatorClient localhost 9999
 
-# Terminal 2-5: Start multiple clients
-make client  # Repeat in different terminals
+# Use the interactive menu
+> create
+
+Item Name: Vintage Camera
+Description: Canon AE-1 from 1976
+Seller ID: photoenthusiast
+Base Price: $250.00
+Duration (minutes): 90
+Category: photography
 ```
 
-### Web Browser Test
-1. Start server: `make server`
-2. Open `web-client.html` in multiple browser tabs
-3. Connect with different usernames
-4. Send messages simultaneously from different tabs
+### Creating an Auction (Programmatically)
 
-## 🔧 Technologies Used
+```java
+AuctionManager manager = new AuctionManager();
 
-- **Pure Java**: No external dependencies, showcasing core Java capabilities
-- **Socket Programming**: Raw socket implementation with proper connection handling
-- **WebSocket Protocol**: Complete RFC 6455 WebSocket implementation
-- **Multithreading**: ExecutorService thread pools and concurrent collections
-- **Design Patterns**: Singleton, Observer, and Factory patterns
-- **HTML/JavaScript**: Modern web client with WebSocket API integration
+Auction auction = manager.createAuction(
+    "Gaming Laptop",                    // itemName
+    "High-end gaming laptop, RTX 4090", // description
+    "seller123",                        // sellerId
+    1500.00,                           // basePrice
+    120,                               // duration (minutes)
+    "electronics"                      // category
+);
+```
 
-## 🏗️ Architecture
+### Protocol Commands
 
-The system uses a multi-layered architecture:
+#### CREATE_AUCTION
 
-- **Presentation Layer**: Web client (HTML/JS) and Console client (Java)
-- **Application Layer**: ChatServer, ClientHandler, ChatBot
-- **Business Logic**: Command processing, User management, Message routing  
-- **Data Layer**: In-memory storage with thread-safe collections
-- **Infrastructure**: Thread pools, WebSocket utilities, Configuration management
+```
+CREATE_AUCTION:itemName:description:sellerId:basePrice:durationMinutes:category
+```
 
-## 📊 Performance Features
+#### LIST_AUCTIONS
 
-- **Concurrent Connections**: Supports up to 100 simultaneous users
-- **Thread Pool Management**: Separate pools for connections and message processing
-- **Memory Efficient**: Proper cleanup of disconnected clients
-- **Configurable**: Adjustable settings via configuration file
-- **Scalable**: Architecture supports horizontal scaling
+```
+LIST_AUCTIONS              # List all active auctions
+LIST_AUCTIONS:category     # List auctions by category
+```
 
-## 📚 Additional Resources
+#### GET_AUCTION
 
-- **USAGE.md**: Comprehensive usage guide and testing scenarios
+```
+GET_AUCTION:auctionId
+```
+
+#### WATCH (for bidding)
+
+```
+WATCH:auction-1
+```
+
+#### BID (place a bid)
+
+```
+BID:auction-1:amount
+```
+
+## 🔧 Module Implementation Status
+
+| Module | Feature                | Status          | Developer       |
+| ------ | ---------------------- | --------------- | --------------- |
+| 1      | User Authentication    | 🟡 In Progress  | Member 1        |
+| 2      | Auction Creation       | ✅ **Complete** | **Your Module** |
+| 3      | Bidding System         | ✅ Complete     | Member 3        |
+| 4      | Real-Time Broadcasting | ✅ Complete     | Member 4        |
+| 5      | Chat System            | ✅ Complete     | Member 5        |
+
+## � Documentation
+
+- **[MODULE2_DOCUMENTATION.md](MODULE2_DOCUMENTATION.md)**: Comprehensive Module 2 documentation
+
+  - Protocol specification
+  - Usage examples
+  - Integration guide
+  - File persistence details
+  - Testing scenarios
+
+- **USAGE.md**: General usage guide and testing scenarios
 - **config.properties**: Server configuration options
-- **Makefile**: Build automation and common tasks
-- **web-client.html**: Feature-rich web interface
