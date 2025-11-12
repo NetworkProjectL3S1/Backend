@@ -4,14 +4,20 @@ import java.io.Serializable;
 import java.util.UUID;
 
 /**
- * Represents a user in the chat system
+ * Represents a user in the auction system with buyer/seller roles
  */
 public class User implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    public enum Role {
+        BUYER,
+        SELLER
+    }
+
     private final String userId;
     private String username;
     private final String password;
+    private Role role;
     private String sessionId;
     private long connectTime;
     private boolean isActive;
@@ -21,6 +27,15 @@ public class User implements Serializable {
         this.userId = UUID.randomUUID().toString();
         this.username = username;
         this.password = password;
+        this.role = Role.BUYER; // Default role
+        this.isLoggedIn = false;
+    }
+
+    public User(String username, String password, Role role) {
+        this.userId = UUID.randomUUID().toString();
+        this.username = username;
+        this.password = password;
+        this.role = role != null ? role : Role.BUYER;
         this.isLoggedIn = false;
     }
 
@@ -36,6 +51,7 @@ public class User implements Serializable {
         this.userId = userId;
         this.username = username;
         this.password = password;
+        this.role = Role.BUYER; // Default role
         this.sessionId = sessionId;
         this.connectTime = System.currentTimeMillis();
         this.isActive = true;
@@ -89,10 +105,23 @@ public class User implements Serializable {
         return userId;
     }
 
+    public Role getRole() {
+        // Handle backward compatibility: if role is null (from old serialized data), default to BUYER
+        if (role == null) {
+            role = Role.BUYER;
+        }
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role != null ? role : Role.BUYER;
+    }
+
     @Override
     public String toString() {
         return "User{" +
                 "username='" + username + '\'' +
+                ", role='" + role + '\'' +
                 ", sessionId='" + sessionId + '\'' +
                 ", connectTime=" + connectTime +
                 ", isActive=" + isActive +

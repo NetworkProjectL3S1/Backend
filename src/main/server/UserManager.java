@@ -66,12 +66,16 @@ public class UserManager {
     }
 
     public User registerUser(String username, String password) {
+        return registerUser(username, password, main.model.User.Role.BUYER);
+    }
+
+    public User registerUser(String username, String password, main.model.User.Role role) {
         username = username.toLowerCase();
         if (persistentUsers.containsKey(username)) {
             return null; // Username already exists
         }
 
-        User newUser = new User(username, password);
+        User newUser = new User(username, password, role);
         persistentUsers.put(username, newUser);
         saveUsersToFile();
         return newUser;
@@ -148,10 +152,17 @@ public class UserManager {
     }
     
     /**
-     * Get a user by username
+     * Get a user by username (from active users)
      */
     public User getUser(String username) {
         return users.get(username);
+    }
+    
+    /**
+     * Get a persistent user by username (from registered users)
+     */
+    public User getPersistentUser(String username) {
+        return persistentUsers.get(username != null ? username.toLowerCase() : null);
     }
     
     /**
