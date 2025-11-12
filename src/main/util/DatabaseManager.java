@@ -2,6 +2,7 @@ package main.util;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -284,6 +285,13 @@ public class DatabaseManager {
     }
 
     /**
+     * Get all bids for a specific auction (alias for loadBidsByAuction for API compatibility)
+     */
+    public List<Bid> getBidsByAuction(String auctionId) {
+        return loadBidsByAuction(auctionId);
+    }
+
+    /**
      * Load all bids by a specific user
      */
     public List<Bid> loadBidsByUser(String userId) {
@@ -385,6 +393,65 @@ public class DatabaseManager {
             System.err.println("[DatabaseManager] Failed to update auction status: " + e.getMessage());
         }
         return false;
+    }
+
+    /**
+     * Update entire auction object
+     */
+    public synchronized boolean updateAuction(Auction auction) {
+        return saveAuction(auction); // Uses INSERT OR REPLACE
+    }
+
+    /**
+     * Get a specific auction by ID (alias for loadAuction for API compatibility)
+     */
+    public Auction getAuction(String auctionId) {
+        return loadAuction(auctionId);
+    }
+
+    /**
+     * Get all auctions as a collection
+     */
+    public Collection<Auction> getAllAuctions() {
+        return loadAllAuctions().values();
+    }
+
+    /**
+     * Create a new auction with auto-generated ID
+     */
+    public synchronized Auction createAuction(String itemName, String itemDescription,
+            String sellerId, double basePrice, long durationMinutes, String category) {
+        
+        // Generate unique auction ID
+        String auctionId = generateAuctionId();
+        
+        // Create auction object
+        Auction auction = new Auction(
+            auctionId,
+            itemName,
+            itemDescription,
+            sellerId,
+            basePrice,
+            durationMinutes,
+            category
+        );
+        
+        // Save to database
+        if (saveAuction(auction)) {
+            System.out.println("[DatabaseManager] New auction created: " + auctionId);
+            return auction;
+        }
+        
+        return null;
+    }
+
+    /**
+     * Generate unique auction ID
+     */
+    private synchronized String generateAuctionId() {
+        long timestamp = System.currentTimeMillis();
+        int random = (int) (Math.random() * 1000);
+        return "auction-" + timestamp + "-" + random;
     }
 
     /**

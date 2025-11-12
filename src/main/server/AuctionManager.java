@@ -1,35 +1,31 @@
 package main.server;
 
-import main.model.Auction;
-import main.util.AuctionFileStorage;
-import java.util.Map;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import main.model.Auction;
+import main.util.DatabaseManager;
 
 /**
  * Manages all auctions in the system
- * Enhanced by Module 2: Auction Creation
+ * Enhanced to use SQL Database storage
  */
 public class AuctionManager {
 
-    // A thread-safe map to hold all active auctions
+    // A thread-safe map to hold all active auctions in memory
     // Key: auctionId (String), Value: Auction object
     private Map<String, Auction> activeAuctions = new ConcurrentHashMap<>();
 
-    // File storage for persistence
-    private final AuctionFileStorage fileStorage;
-
-    // Auction ID counter
-    private final AtomicInteger auctionCounter = new AtomicInteger(1);
+    // Database manager for persistence
+    private final DatabaseManager dbManager;
 
     // Reference to server for broadcasting
     private AuctionServer server;
 
     public AuctionManager() {
-        this.fileStorage = AuctionFileStorage.getInstance();
-        loadAuctionsFromStorage();
+        this.dbManager = DatabaseManager.getInstance();
+        loadAuctionsFromDatabase();
     }
 
     /**
@@ -40,69 +36,52 @@ public class AuctionManager {
     }
 
     /**
-     * Load all auctions from persistent storage on startup
+     * Load all auctions from database on startup
      */
-    private void loadAuctionsFromStorage() {
-        System.out.println("[AuctionManager] Loading auctions from storage...");
-        Map<String, Auction> loadedAuctions = fileStorage.loadAllAuctions();
+    private void loadAuctionsFromDatabase() {
+        System.out.println("[AuctionManager] Loading auctions from database...");
+        Map<String, Auction> loadedAuctions = dbManager.loadAllAuctions();
 
         // Filter out expired auctions and update their status
         for (Auction auction : loadedAuctions.values()) {
             if (auction.hasExpired() && auction.getStatus() == Auction.AuctionStatus.ACTIVE) {
                 auction.setStatus(Auction.AuctionStatus.CLOSED);
-                fileStorage.saveAuction(auction); // Update storage
+                dbManager.updateAuctionStatus(auction.getAuctionId(), Auction.AuctionStatus.CLOSED);
             }
             activeAuctions.put(auction.getAuctionId(), auction);
-
-            // Update counter to avoid ID conflicts
-            try {
-                int id = Integer.parseInt(auction.getAuctionId().replace("auction-", ""));
-                if (id >= auctionCounter.get()) {
-                    auctionCounter.set(id + 1);
-                }
-            } catch (NumberFormatException e) {
-                // Ignore non-numeric IDs
-            }
         }
 
-        System.out.println("[AuctionManager] Loaded " + activeAuctions.size() + " auctions");
+        System.out.println("[AuctionManager] Loaded " + activeAuctions.size() + " auctions from database");
     }
 
     /**
      * Create a new auction with full parameters
-     * This is the main method for Module 2
      */
     public Auction createAuction(String itemName, String itemDescription,
             String sellerId, double basePrice,
             long durationMinutes, String category) {
-        // Generate unique auction ID
-        String auctionId = generateAuctionId();
+        
+        // Create auction in database
+        Auction auction = dbManager.createAuction(
+            itemName,
+            itemDescription,
+            sellerId,
+            basePrice,
+            durationMinutes,
+            category
+        );
 
-        // Create the auction object
-        Auction auction = new Auction(
-                auctionId,
-                itemName,
-                itemDescription,
-                sellerId,
-                basePrice,
-                durationMinutes,
-                category);
+        if (auction != null) {
+            // Add to active auctions in memory
+            activeAuctions.put(auction.getAuctionId(), auction);
 
-        // Add to active auctions
-        activeAuctions.put(auctionId, auction);
+            System.out.println("[AuctionManager] New auction created: " + auction.getAuctionId() +
+                    " - " + itemName + " by " + sellerId);
 
-        // Persist to file storage
-        fileStorage.saveAuction(auction);
-
-        // Also export to text for easy viewing
-        fileStorage.exportAuctionToText(auction);
-
-        System.out.println("[AuctionManager] New auction created: " + auctionId +
-                " - " + itemName + " by " + sellerId);
-
-        // Broadcast to all connected clients (if server is set)
-        if (server != null) {
-            server.broadcastNewAuction(auction);
+            // Broadcast to all connected clients (if server is set)
+            if (server != null) {
+                server.broadcastNewAuction(auction);
+            }
         }
 
         return auction;
@@ -115,21 +94,17 @@ public class AuctionManager {
         if (auction == null)
             return;
 
+        // Save to database
+        dbManager.saveAuction(auction);
+        
+        // Add to memory
         activeAuctions.put(auction.getAuctionId(), auction);
-        fileStorage.saveAuction(auction);
 
         System.out.println("[AuctionManager] Auction created: " + auction.getAuctionId());
 
         if (server != null) {
             server.broadcastNewAuction(auction);
         }
-    }
-
-    /**
-     * Generate a unique auction ID
-     */
-    private String generateAuctionId() {
-        return "auction-" + auctionCounter.getAndIncrement();
     }
 
     /**
@@ -142,7 +117,7 @@ public class AuctionManager {
         if (auction != null && auction.hasExpired() &&
                 auction.getStatus() == Auction.AuctionStatus.ACTIVE) {
             auction.setStatus(Auction.AuctionStatus.CLOSED);
-            fileStorage.saveAuction(auction); // Update storage
+            dbManager.updateAuctionStatus(auctionId, Auction.AuctionStatus.CLOSED);
         }
 
         return auction;
@@ -189,7 +164,7 @@ public class AuctionManager {
         Auction auction = activeAuctions.get(auctionId);
         if (auction != null && auction.getStatus() == Auction.AuctionStatus.ACTIVE) {
             auction.setStatus(Auction.AuctionStatus.CLOSED);
-            fileStorage.saveAuction(auction);
+            dbManager.updateAuctionStatus(auctionId, Auction.AuctionStatus.CLOSED);
             System.out.println("[AuctionManager] Auction closed: " + auctionId);
             return true;
         }
@@ -205,7 +180,7 @@ public class AuctionManager {
         // Only seller can cancel their auction
         if (auction != null && auction.getSellerId().equals(requesterId)) {
             auction.setStatus(Auction.AuctionStatus.CANCELLED);
-            fileStorage.saveAuction(auction);
+            dbManager.updateAuctionStatus(auctionId, Auction.AuctionStatus.CANCELLED);
             System.out.println("[AuctionManager] Auction cancelled: " + auctionId);
             return true;
         }
@@ -213,17 +188,21 @@ public class AuctionManager {
     }
 
     /**
-     * Save all auctions to storage
+     * Save all auctions to database
      */
     public void saveAllAuctions() {
-        fileStorage.saveAllAuctions(activeAuctions);
+        for (Auction auction : activeAuctions.values()) {
+            dbManager.saveAuction(auction);
+        }
+        System.out.println("[AuctionManager] All auctions saved to database");
     }
 
     /**
-     * Create a backup of all auctions
+     * Create a backup of the database
      */
     public void createBackup() {
-        fileStorage.createBackup();
+        String backupPath = "data/backups/auction_backup_" + System.currentTimeMillis() + ".db";
+        dbManager.backupDatabase(backupPath);
     }
 
     /**

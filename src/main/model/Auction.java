@@ -1,8 +1,8 @@
 package main.model;
 
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.io.Serializable;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Auction implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -129,6 +129,14 @@ public class Auction implements Serializable {
     // --- Setters ---
     public void setStatus(AuctionStatus status) {
         this.status = status;
+    }
+
+    public void setCurrentHighestBid(double bid) {
+        this.currentHighestBid = bid;
+    }
+
+    public void setCurrentHighestBidder(String bidder) {
+        this.currentHighestBidder = bidder;
     }
 
     // --- Bid Logic ---
