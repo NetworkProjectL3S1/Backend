@@ -37,6 +37,14 @@ public class ApiResponse {
     }
     
     /**
+     * Send success response with raw JSON data (already formatted)
+     */
+    public static void sendSuccessRaw(HttpExchange exchange, String jsonData) throws IOException {
+        String json = String.format("{\"success\":true,\"data\":%s}", jsonData);
+        sendJson(exchange, 200, json);
+    }
+    
+    /**
      * Send error response
      */
     public static void sendError(HttpExchange exchange, int statusCode, String message) throws IOException {
@@ -49,6 +57,14 @@ public class ApiResponse {
      */
     public static void sendCreated(HttpExchange exchange, Object data) throws IOException {
         String json = String.format("{\"success\":true,\"data\":%s}", toJson(data));
+        sendJson(exchange, 201, json);
+    }
+    
+    /**
+     * Send created response with raw JSON data (already formatted)
+     */
+    public static void sendCreatedRaw(HttpExchange exchange, String jsonData) throws IOException {
+        String json = String.format("{\"success\":true,\"data\":%s}", jsonData);
         sendJson(exchange, 201, json);
     }
     

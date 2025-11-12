@@ -102,7 +102,7 @@ public class AuctionController implements HttpHandler {
             
             if (auction != null) {
                 String json = auctionToJson(auction);
-                ApiResponse.sendCreated(exchange, json);
+                ApiResponse.sendCreatedRaw(exchange, json);
             } else {
                 ApiResponse.sendError(exchange, 500, "Failed to create auction");
             }
@@ -129,7 +129,7 @@ public class AuctionController implements HttpHandler {
         }
         jsonArray.append("]");
         
-        ApiResponse.sendSuccess(exchange, jsonArray.toString());
+        ApiResponse.sendSuccessRaw(exchange, jsonArray.toString());
     }
     
     /**
@@ -144,7 +144,7 @@ public class AuctionController implements HttpHandler {
         
         if (auction != null) {
             String json = auctionToJson(auction);
-            ApiResponse.sendSuccess(exchange, json);
+            ApiResponse.sendSuccessRaw(exchange, json);
         } else {
             ApiResponse.sendError(exchange, 404, "Auction not found");
         }

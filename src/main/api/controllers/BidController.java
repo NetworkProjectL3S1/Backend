@@ -118,7 +118,7 @@ public class BidController implements HttpHandler {
                 dbManager.updateAuction(auction);
                 
                 String json = bidToJson(bid);
-                ApiResponse.sendCreated(exchange, json);
+                ApiResponse.sendCreatedRaw(exchange, json);
             } else {
                 ApiResponse.sendError(exchange, 500, "Failed to place bid");
             }
@@ -154,7 +154,7 @@ public class BidController implements HttpHandler {
         }
         jsonArray.append("]");
         
-        ApiResponse.sendSuccess(exchange, jsonArray.toString());
+        ApiResponse.sendSuccessRaw(exchange, jsonArray.toString());
     }
     
     /**
