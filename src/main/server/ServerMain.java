@@ -4,7 +4,7 @@ public class ServerMain {
 
     public static void main(String[] args) {
         // Define the port to listen on
-        int port = 8080;
+        int port = 8081;
 
         try {
             // Create and start the main auction server
