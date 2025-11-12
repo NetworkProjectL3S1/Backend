@@ -14,8 +14,20 @@ if [ ! -d "build" ]; then
     ./compile.sh
 fi
 
+# Find SQLite JDBC driver
+SQLITE_JAR=$(find lib -name "sqlite-jdbc-*.jar" 2>/dev/null | head -n 1)
+
+if [ -z "$SQLITE_JAR" ]; then
+    echo "⚠️  SQLite JDBC driver not found in lib directory"
+    echo "Run './download-dependencies.sh' to download required dependencies"
+    exit 1
+fi
+
+# Set classpath
+CLASSPATH="build:${SQLITE_JAR}"
+
 echo "Connecting to $HOST:$PORT..."
 echo "Use Ctrl+C to exit if connection fails"
 
 # Start the client
-java -cp build main.client.ChatClient $HOST $PORT
+java -cp "${CLASSPATH}" main.client.ChatClient $HOST $PORT
