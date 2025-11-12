@@ -1,16 +1,41 @@
 package main.model;
 
+import java.io.Serializable;
+import java.util.UUID;
+
 /**
  * Represents a user in the chat system
  */
-public class User {
+public class User implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private final String userId;
     private String username;
+    private final String password;
     private String sessionId;
     private long connectTime;
     private boolean isActive;
-    
-    public User(String username, String sessionId) {
+    private transient boolean isLoggedIn;
+
+    public User(String username, String password) {
+        this.userId = UUID.randomUUID().toString();
         this.username = username;
+        this.password = password;
+        this.isLoggedIn = false;
+    }
+
+    // Constructor for existing users (when loaded from file)
+    private User(String userId, String username, String password) {
+        this.userId = userId;
+        this.username = username;
+        this.password = password;
+        this.isLoggedIn = false;
+    }
+    
+    public User(String userId, String username, String password, String sessionId) {
+        this.userId = userId;
+        this.username = username;
+        this.password = password;
         this.sessionId = sessionId;
         this.connectTime = System.currentTimeMillis();
         this.isActive = true;
@@ -43,7 +68,27 @@ public class User {
     public void setActive(boolean active) {
         this.isActive = active;
     }
-    
+
+    public void setConnectTime(long connectTime) {
+        this.connectTime = connectTime;
+    }
+
+    public boolean isLoggedIn() {
+        return isLoggedIn;
+    }
+
+    public void setLoggedIn(boolean loggedIn) {
+        isLoggedIn = loggedIn;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
     @Override
     public String toString() {
         return "User{" +
