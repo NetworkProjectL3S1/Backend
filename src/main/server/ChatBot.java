@@ -95,6 +95,15 @@ public class ChatBot {
                     "User " + username + " has left the chat."
                 );
                 
+            case HISTORY:
+                return handleHistoryCommand(command, username);
+                
+            case STATS:
+                return handleStatsCommand(username);
+                
+            case SEARCH:
+                return handleSearchCommand(command, username);
+                
             default:
                 return new Message(
                     Message.MessageType.BOT_RESPONSE,
@@ -277,5 +286,158 @@ public class ChatBot {
             BOT_NAME,
             username + " has left the chat. " + getRandomResponse(farewellResponses)
         );
+    }
+    
+    /**
+     * Handle history command to show recent messages
+     */
+    private Message handleHistoryCommand(Command command, String username) {
+        int messageCount = 10; // default
+        
+        String[] params = command.getParameters();
+        if (params.length > 0) {
+            try {
+                messageCount = Integer.parseInt(params[0]);
+                if (messageCount < 1 || messageCount > 50) {
+                    return new Message(
+                        Message.MessageType.BOT_RESPONSE,
+                        BOT_NAME,
+                        "Please specify a number between 1 and 50 for message history."
+                    );
+                }
+            } catch (NumberFormatException e) {
+                return new Message(
+                    Message.MessageType.BOT_RESPONSE,
+                    BOT_NAME,
+                    "Invalid number format. Usage: /history [number]"
+                );
+            }
+        }
+        
+        try {
+            main.util.MessageStorage storage = main.util.MessageStorage.getInstance();
+            java.util.List<main.model.Message> recentMessages = storage.getRecentMessages(messageCount);
+            
+            if (recentMessages.isEmpty()) {
+                return new Message(
+                    Message.MessageType.BOT_RESPONSE,
+                    BOT_NAME,
+                    "No message history available yet."
+                );
+            }
+            
+            StringBuilder history = new StringBuilder();
+            history.append("📜 Recent ").append(recentMessages.size()).append(" messages:\n");
+            
+            SimpleDateFormat formatter = new SimpleDateFormat("HH:mm:ss");
+            for (main.model.Message msg : recentMessages) {
+                String time = formatter.format(new java.util.Date(msg.getTimestamp()));
+                history.append("[").append(time).append("] ");
+                
+                if (msg.getType() == main.model.Message.MessageType.BOT_RESPONSE) {
+                    history.append("[Bot] ").append(msg.getContent());
+                } else if (msg.getTargetUser() != null) {
+                    history.append("<").append(msg.getUsername()).append(" -> ").append(msg.getTargetUser()).append("> ");
+                    history.append(msg.getContent());
+                } else {
+                    history.append("<").append(msg.getUsername()).append("> ").append(msg.getContent());
+                }
+                history.append("\n");
+            }
+            
+            return new Message(
+                Message.MessageType.BOT_RESPONSE,
+                BOT_NAME,
+                history.toString().trim()
+            );
+            
+        } catch (Exception e) {
+            return new Message(
+                Message.MessageType.BOT_RESPONSE,
+                BOT_NAME,
+                "Error retrieving message history: " + e.getMessage()
+            );
+        }
+    }
+    
+    /**
+     * Handle stats command to show storage statistics
+     */
+    private Message handleStatsCommand(String username) {
+        try {
+            main.util.MessageStorage storage = main.util.MessageStorage.getInstance();
+            String stats = storage.getStorageStats();
+            
+            return new Message(
+                Message.MessageType.BOT_RESPONSE,
+                BOT_NAME,
+                "📊 " + stats
+            );
+            
+        } catch (Exception e) {
+            return new Message(
+                Message.MessageType.BOT_RESPONSE,
+                BOT_NAME,
+                "Error retrieving storage statistics: " + e.getMessage()
+            );
+        }
+    }
+    
+    /**
+     * Handle search command to find messages by user
+     */
+    private Message handleSearchCommand(Command command, String username) {
+        String[] params = command.getParameters();
+        if (params.length == 0) {
+            return new Message(
+                Message.MessageType.BOT_RESPONSE,
+                BOT_NAME,
+                "Usage: /search <username> - Find messages by a specific user"
+            );
+        }
+        
+        String searchUsername = params[0];
+        
+        try {
+            main.util.MessageStorage storage = main.util.MessageStorage.getInstance();
+            java.util.List<main.model.Message> userMessages = storage.getMessagesByUser(searchUsername);
+            
+            if (userMessages.isEmpty()) {
+                return new Message(
+                    Message.MessageType.BOT_RESPONSE,
+                    BOT_NAME,
+                    "No messages found for user: " + searchUsername
+                );
+            }
+            
+            StringBuilder result = new StringBuilder();
+            result.append("🔍 Found ").append(userMessages.size()).append(" messages from ").append(searchUsername).append(":\n");
+            
+            SimpleDateFormat formatter = new SimpleDateFormat("HH:mm:ss");
+            int displayCount = Math.min(userMessages.size(), 10); // Show max 10 messages
+            
+            for (int i = 0; i < displayCount; i++) {
+                main.model.Message msg = userMessages.get(i);
+                String time = formatter.format(new java.util.Date(msg.getTimestamp()));
+                result.append("[").append(time).append("] ").append(msg.getContent()).append("\n");
+            }
+            
+            if (userMessages.size() > 10) {
+                result.append("... and ").append(userMessages.size() - 10).append(" more messages");
+            }
+            
+            return new Message(
+                Message.MessageType.BOT_RESPONSE,
+                BOT_NAME,
+                result.toString().trim()
+            );
+            
+        } catch (Exception e) {
+            return new Message(
+                Message.MessageType.BOT_RESPONSE,
+                BOT_NAME,
+                "Error searching messages: " + e.getMessage()
+            );
+        }
     }
 }

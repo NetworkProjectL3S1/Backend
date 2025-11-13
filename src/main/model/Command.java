@@ -5,7 +5,7 @@ package main.model;
  */
 public class Command {
     public enum CommandType {
-        HELP, USERS, TIME, BOT, QUIT, PRIVATE_MESSAGE, UNKNOWN
+        HELP, USERS, TIME, BOT, QUIT, PRIVATE_MESSAGE, HISTORY, STATS, SEARCH, UNKNOWN
     }
     
     private CommandType type;
@@ -54,6 +54,18 @@ public class Command {
             case "whisper":
                 type = CommandType.PRIVATE_MESSAGE;
                 break;
+            case "history":
+            case "recent":
+                type = CommandType.HISTORY;
+                break;
+            case "stats":
+            case "statistics":
+                type = CommandType.STATS;
+                break;
+            case "search":
+            case "find":
+                type = CommandType.SEARCH;
+                break;
             default:
                 type = CommandType.UNKNOWN;
                 break;
@@ -99,6 +111,9 @@ public class Command {
                "/time - Get current server time\n" +
                "/bot <message> - Send a message to the chat bot\n" +
                "/pm <username> <message> - Send a private message to a user\n" +
+               "/history [number] - Show recent chat messages (default: 10)\n" +
+               "/stats - Show message storage statistics\n" +
+               "/search <username> - Find messages by specific user\n" +
                "/quit - Disconnect from the chat server";
     }
     

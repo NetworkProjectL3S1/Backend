@@ -2,6 +2,7 @@ package main.server;
 
 import main.model.Message;
 import main.util.ThreadPoolManager;
+import main.util.MessageStorage;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -24,6 +25,7 @@ public class ChatServer {
     
     private final ThreadPoolManager threadPoolManager;
     private final UserManager userManager;
+    private final MessageStorage messageStorage;
     
     public ChatServer() {
         this(DEFAULT_PORT);
@@ -33,6 +35,7 @@ public class ChatServer {
         this.port = port;
         this.threadPoolManager = ThreadPoolManager.getInstance();
         this.userManager = UserManager.getInstance();
+        this.messageStorage = MessageStorage.getInstance();
     }
     
     /**
@@ -95,6 +98,13 @@ public class ChatServer {
             return;
         }
         
+        // Save message to storage (except system messages that are just notifications)
+        if (message.getType() != Message.MessageType.SYSTEM && 
+            message.getType() != Message.MessageType.JOIN && 
+            message.getType() != Message.MessageType.LEAVE) {
+            messageStorage.saveMessage(message);
+        }
+        
         String formattedMessage = formatMessageForBroadcast(message);
         
         // Log the message to server console
@@ -120,6 +130,9 @@ public class ChatServer {
     public boolean sendMessageToUser(String username, Message message) {
         ClientHandler targetHandler = userManager.getClientHandler(username);
         if (targetHandler != null && targetHandler.isConnected()) {
+            // Save private message to storage
+            messageStorage.saveMessage(message);
+            
             String formattedMessage = formatMessageForBroadcast(message);
             targetHandler.sendMessage(formattedMessage);
             return true;
@@ -236,6 +249,27 @@ public class ChatServer {
     
     public int getActiveConnections() {
         return clientHandlers.size();
+    }
+    
+    /**
+     * Get recent messages from storage
+     */
+    public java.util.List<Message> getRecentMessages(int count) {
+        return messageStorage.getRecentMessages(count);
+    }
+    
+    /**
+     * Get messages by user
+     */
+    public java.util.List<Message> getMessagesByUser(String username) {
+        return messageStorage.getMessagesByUser(username);
+    }
+    
+    /**
+     * Get storage statistics
+     */
+    public String getStorageStats() {
+        return messageStorage.getStorageStats();
     }
     
     /**
