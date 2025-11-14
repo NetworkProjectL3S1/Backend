@@ -53,6 +53,27 @@ public class Auction implements Serializable {
     }
 
     /**
+     * Constructor for loading from database with preserved timestamps
+     */
+    public Auction(String auctionId, String itemName, String itemDescription,
+            String sellerId, double basePrice, long createdTime, long endTime, 
+            long duration, String category) {
+        this.auctionId = auctionId;
+        this.itemName = itemName;
+        this.itemDescription = itemDescription;
+        this.sellerId = sellerId;
+        this.basePrice = basePrice;
+        this.currentHighestBid = basePrice;
+        this.currentHighestBidder = null;
+        this.createdTime = createdTime; // Use stored timestamp
+        this.endTime = endTime; // Use stored timestamp
+        this.duration = duration;
+        this.status = AuctionStatus.ACTIVE;
+        this.category = category;
+        this.watchers = new CopyOnWriteArrayList<>();
+    }
+
+    /**
      * Legacy constructor for backward compatibility
      */
     public Auction(String auctionId, String itemName, double basePrice) {

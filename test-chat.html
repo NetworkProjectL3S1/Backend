@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Chat Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin: 10px 0; }
+        .message { margin: 5px 0; }
+        .sent { color: blue; }
+        .received { color: green; }
+        .system { color: gray; font-style: italic; }
+        input { width: 300px; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <h2>WebSocket Chat Test</h2>
+    
+    <div>
+        <label>Username: <input type="text" id="username" placeholder="Enter username"></label>
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <span id="status">Disconnected</span>
+    </div>
+    
+    <div id="messages"></div>
+    
+    <div>
+        <input type="text" id="message" placeholder="Type message..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+    
+    <div style="margin-top: 10px;">
+        <label>To: <input type="text" id="toUser" placeholder="recipient"></label>
+        <label>Auction: <input type="text" id="auctionId" placeholder="auction ID"></label>
+        <button onclick="sendPrivateMessage()">Send Private</button>
+    </div>
+
+    <script>
+        let socket = null;
+        let username = '';
+
+        function connect() {
+            username = document.getElementById('username').value.trim();
+            if (!username) {
+                alert('Please enter username');
+                return;
+            }
+
+            socket = new WebSocket('ws://localhost:8080/chat');
+            
+            socket.onopen = () => {
+                addMessage('Connected to server', 'system');
+                document.getElementById('status').textContent = 'Connected';
+                document.getElementById('status').style.color = 'green';
+                
+                // Send username
+                socket.send(username);
+            };
+
+            socket.onmessage = (event) => {
+                console.log('Received:', event.data);
+                addMessage(event.data, 'received');
+            };
+
+            socket.onclose = () => {
+                addMessage('Disconnected from server', 'system');
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('status').style.color = 'red';
+            };
+
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                addMessage('Error: ' + error, 'system');
+            };
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+        }
+
+        function sendMessage() {
+            const msg = document.getElementById('message').value.trim();
+            if (!msg || !socket) return;
+
+            console.log('Sending:', msg);
+            socket.send(msg);
+            addMessage('You: ' + msg, 'sent');
+            document.getElementById('message').value = '';
+        }
+
+        function sendPrivateMessage() {
+            const toUser = document.getElementById('toUser').value.trim();
+            const auctionId = document.getElementById('auctionId').value.trim();
+            const msg = document.getElementById('message').value.trim();
+            
+            if (!toUser || !msg || !socket) {
+                alert('Please fill recipient and message');
+                return;
+            }
+
+            const privateMsg = auctionId 
+                ? `/msg ${toUser} [Auction:${auctionId}] ${msg}`
+                : `/msg ${toUser} ${msg}`;
+            
+            console.log('Sending private:', privateMsg);
+            socket.send(privateMsg);
+            addMessage('Private to ' + toUser + ': ' + msg, 'sent');
+            document.getElementById('message').value = '';
+        }
+
+        function addMessage(msg, type) {
+            const messagesDiv = document.getElementById('messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message ' + type;
+            msgDiv.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>

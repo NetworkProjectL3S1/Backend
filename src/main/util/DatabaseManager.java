@@ -107,6 +107,35 @@ public class DatabaseManager {
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """;
+        
+        String createChatMessagesTable = """
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                auction_id TEXT NOT NULL,
+                sender_username TEXT NOT NULL,
+                recipient_username TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                is_read INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (auction_id) REFERENCES auctions(auction_id)
+            )
+        """;
+        
+        String createNotificationsTable = """
+            CREATE TABLE IF NOT EXISTS notifications (
+                notification_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                auction_id TEXT,
+                timestamp INTEGER NOT NULL,
+                is_read INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (auction_id) REFERENCES auctions(auction_id)
+            )
+        """;
 
         String createBidsIndex = """
             CREATE INDEX IF NOT EXISTS idx_bids_auction_id 
@@ -127,15 +156,41 @@ public class DatabaseManager {
             CREATE INDEX IF NOT EXISTS idx_users_token 
             ON users(token)
         """;
+        
+        String createChatMessagesAuctionIndex = """
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_auction_id 
+            ON chat_messages(auction_id)
+        """;
+        
+        String createChatMessagesUsersIndex = """
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_users 
+            ON chat_messages(sender_username, recipient_username)
+        """;
+        
+        String createNotificationsUsernameIndex = """
+            CREATE INDEX IF NOT EXISTS idx_notifications_username 
+            ON notifications(username, is_read)
+        """;
+        
+        String createNotificationsTimestampIndex = """
+            CREATE INDEX IF NOT EXISTS idx_notifications_timestamp 
+            ON notifications(timestamp DESC)
+        """;
 
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createAuctionsTable);
             stmt.execute(createBidsTable);
             stmt.execute(createUsersTable);
+            stmt.execute(createChatMessagesTable);
+            stmt.execute(createNotificationsTable);
             stmt.execute(createBidsIndex);
             stmt.execute(createBidsTimestampIndex);
             stmt.execute(createUsersUsernameIndex);
             stmt.execute(createUsersTokenIndex);
+            stmt.execute(createChatMessagesAuctionIndex);
+            stmt.execute(createChatMessagesUsersIndex);
+            stmt.execute(createNotificationsUsernameIndex);
+            stmt.execute(createNotificationsTimestampIndex);
             System.out.println("[DatabaseManager] Database tables created successfully");
         }
     }
@@ -601,14 +656,16 @@ public class DatabaseManager {
      * Helper method to create Auction object from ResultSet
      */
     private Auction createAuctionFromResultSet(ResultSet rs) throws SQLException {
-        // Create auction using constructor
+        // Create auction using constructor with preserved timestamps
         Auction auction = new Auction(
             rs.getString("auction_id"),
             rs.getString("item_name"),
             rs.getString("item_description"),
             rs.getString("seller_id"),
             rs.getDouble("base_price"),
-            rs.getLong("duration") / (60 * 1000), // convert ms to minutes
+            rs.getLong("created_time"), // Preserve original created time
+            rs.getLong("end_time"), // Preserve original end time
+            rs.getLong("duration"),
             rs.getString("category")
         );
 
@@ -834,8 +891,292 @@ public class DatabaseManager {
         );
     }
     
+    // ========================
+    // Chat Messages Methods
+    // ========================
+    
+    /**
+     * Save a chat message to the database
+     */
+    public synchronized boolean saveChatMessage(main.model.ChatMessage message) {
+        String sql = """
+            INSERT INTO chat_messages (auction_id, sender_username, recipient_username, 
+                                      content, timestamp, is_read)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, message.getAuctionId());
+            pstmt.setString(2, message.getSenderUsername());
+            pstmt.setString(3, message.getRecipientUsername());
+            pstmt.setString(4, message.getContent());
+            pstmt.setLong(5, message.getTimestamp());
+            pstmt.setInt(6, message.isRead() ? 1 : 0);
+            
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("[DatabaseManager] Chat message saved for auction: " + message.getAuctionId());
+                return true;
+            }
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Error saving chat message: " + e.getMessage());
+        }
+        return false;
+    }
+    
+    /**
+     * Get all chat messages for a specific auction
+     */
+    public synchronized List<main.model.ChatMessage> getChatMessagesByAuction(String auctionId) {
+        List<main.model.ChatMessage> messages = new ArrayList<>();
+        String sql = """
+            SELECT * FROM chat_messages 
+            WHERE auction_id = ? 
+            ORDER BY timestamp ASC
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, auctionId);
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                messages.add(createChatMessageFromResultSet(rs));
+            }
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Error fetching chat messages: " + e.getMessage());
+        }
+        
+        return messages;
+    }
+    
+    /**
+     * Get unique buyers who have sent messages for a seller's auctions
+     */
+    public synchronized Map<String, List<String>> getBuyersBySeller(String sellerUsername) {
+        Map<String, List<String>> auctionBuyers = new ConcurrentHashMap<>();
+        String sql = """
+            SELECT DISTINCT cm.auction_id, cm.sender_username 
+            FROM chat_messages cm
+            JOIN auctions a ON cm.auction_id = a.auction_id
+            WHERE a.seller_id = ? AND cm.sender_username != ?
+            ORDER BY cm.auction_id, cm.timestamp DESC
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, sellerUsername);
+            pstmt.setString(2, sellerUsername);
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                String auctionId = rs.getString("auction_id");
+                String buyer = rs.getString("sender_username");
+                
+                auctionBuyers.computeIfAbsent(auctionId, k -> new ArrayList<>()).add(buyer);
+            }
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Error fetching buyers: " + e.getMessage());
+        }
+        
+        return auctionBuyers;
+    }
+    
+    /**
+     * Get unread message count for a specific auction and user
+     */
+    public synchronized int getUnreadMessageCount(String auctionId, String username) {
+        String sql = """
+            SELECT COUNT(*) as count FROM chat_messages 
+            WHERE auction_id = ? AND recipient_username = ? AND is_read = 0
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, auctionId);
+            pstmt.setString(2, username);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                return rs.getInt("count");
+            }
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Error getting unread count: " + e.getMessage());
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * Mark messages as read
+     */
+    public synchronized boolean markMessagesAsRead(String auctionId, String username) {
+        String sql = """
+            UPDATE chat_messages 
+            SET is_read = 1 
+            WHERE auction_id = ? AND recipient_username = ? AND is_read = 0
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, auctionId);
+            pstmt.setString(2, username);
+            pstmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Error marking messages as read: " + e.getMessage());
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Create ChatMessage object from ResultSet
+     */
+    private main.model.ChatMessage createChatMessageFromResultSet(ResultSet rs) throws SQLException {
+        main.model.ChatMessage message = new main.model.ChatMessage();
+        message.setMessageId(rs.getLong("message_id"));
+        message.setAuctionId(rs.getString("auction_id"));
+        message.setSenderUsername(rs.getString("sender_username"));
+        message.setRecipientUsername(rs.getString("recipient_username"));
+        message.setContent(rs.getString("content"));
+        message.setTimestamp(rs.getLong("timestamp"));
+        message.setRead(rs.getInt("is_read") == 1);
+        return message;
+    }
+    
+    /**
+     * Save a notification to the database
+     */
+    public synchronized boolean saveNotification(main.model.Notification notification) {
+        String sql = """
+            INSERT INTO notifications 
+            (username, type, title, message, auction_id, timestamp, is_read) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, notification.getUsername());
+            pstmt.setString(2, notification.getType());
+            pstmt.setString(3, notification.getTitle());
+            pstmt.setString(4, notification.getMessage());
+            pstmt.setString(5, notification.getAuctionId());
+            pstmt.setLong(6, notification.getTimestamp());
+            pstmt.setInt(7, notification.isRead() ? 1 : 0);
+            pstmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Error saving notification: " + e.getMessage());
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Get notifications for a user
+     */
+    public synchronized List<main.model.Notification> getNotifications(String username) {
+        List<main.model.Notification> notifications = new ArrayList<>();
+        String sql = """
+            SELECT * FROM notifications 
+            WHERE username = ? 
+            ORDER BY timestamp DESC
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                notifications.add(createNotificationFromResultSet(rs));
+            }
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Error getting notifications: " + e.getMessage());
+        }
+        
+        return notifications;
+    }
+    
+    /**
+     * Get unread notification count for a user
+     */
+    public synchronized int getUnreadNotificationCount(String username) {
+        String sql = """
+            SELECT COUNT(*) as count FROM notifications 
+            WHERE username = ? AND is_read = 0
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                return rs.getInt("count");
+            }
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Error getting unread notification count: " + e.getMessage());
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * Mark a notification as read
+     */
+    public synchronized boolean markNotificationAsRead(long notificationId) {
+        String sql = """
+            UPDATE notifications 
+            SET is_read = 1 
+            WHERE notification_id = ?
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setLong(1, notificationId);
+            pstmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Error marking notification as read: " + e.getMessage());
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Mark all notifications as read for a user
+     */
+    public synchronized boolean markAllNotificationsAsRead(String username) {
+        String sql = """
+            UPDATE notifications 
+            SET is_read = 1 
+            WHERE username = ? AND is_read = 0
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            pstmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Error marking all notifications as read: " + e.getMessage());
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Create Notification object from ResultSet
+     */
+    private main.model.Notification createNotificationFromResultSet(ResultSet rs) throws SQLException {
+        main.model.Notification notification = new main.model.Notification();
+        notification.setNotificationId(rs.getLong("notification_id"));
+        notification.setUsername(rs.getString("username"));
+        notification.setType(rs.getString("type"));
+        notification.setTitle(rs.getString("title"));
+        notification.setMessage(rs.getString("message"));
+        notification.setAuctionId(rs.getString("auction_id"));
+        notification.setTimestamp(rs.getLong("timestamp"));
+        notification.setRead(rs.getInt("is_read") == 1);
+        return notification;
+    }
+    
     /**
      * Hash password (simple implementation - use BCrypt in production)
+```
      */
     private String hashPassword(String password) {
         // Simple hash for now - in production, use BCrypt or similar

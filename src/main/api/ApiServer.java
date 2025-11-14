@@ -7,6 +7,9 @@ import java.util.concurrent.Executors;
 import main.api.controllers.AuctionController;
 import main.api.controllers.AuthController;
 import main.api.controllers.BidController;
+import main.api.controllers.ChatController;
+import main.api.controllers.NotificationController;
+import main.util.AuctionTimerManager;
 
 /**
  * REST API Server for Auction System
@@ -21,6 +24,8 @@ public class ApiServer {
     private AuctionController auctionController;
     private BidController bidController;
     private AuthController authController;
+    private ChatController chatController;
+    private NotificationController notificationController;
     
     public ApiServer() throws IOException {
         // Initialize HTTP server
@@ -30,6 +35,8 @@ public class ApiServer {
         auctionController = new AuctionController();
         bidController = new BidController();
         authController = new AuthController();
+        chatController = new ChatController();
+        notificationController = new NotificationController();
         
         // Set up routes
         setupRoutes();
@@ -64,6 +71,59 @@ public class ApiServer {
         server.createContext("/api/bids/place", bidController);
         server.createContext("/api/bids/history", bidController);
         
+        // Chat endpoints
+        server.createContext("/api/chat/messages", exchange -> {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                chatController.getMessages(exchange);
+            } else {
+                ApiResponse.sendError(exchange, 405, "Method not allowed");
+            }
+        });
+        server.createContext("/api/chat/buyers", exchange -> {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                chatController.getBuyers(exchange);
+            } else {
+                ApiResponse.sendError(exchange, 405, "Method not allowed");
+            }
+        });
+        server.createContext("/api/chat/mark-read", exchange -> {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                chatController.markAsRead(exchange);
+            } else {
+                ApiResponse.sendError(exchange, 405, "Method not allowed");
+            }
+        });
+        
+        // Notification endpoints
+        server.createContext("/api/notifications", exchange -> {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                notificationController.getNotifications(exchange);
+            } else {
+                ApiResponse.sendError(exchange, 405, "Method not allowed");
+            }
+        });
+        server.createContext("/api/notifications/unread-count", exchange -> {
+            if ("GET".equals(exchange.getRequestMethod())) {
+                notificationController.getUnreadCount(exchange);
+            } else {
+                ApiResponse.sendError(exchange, 405, "Method not allowed");
+            }
+        });
+        server.createContext("/api/notifications/mark-read", exchange -> {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                notificationController.markAsRead(exchange);
+            } else {
+                ApiResponse.sendError(exchange, 405, "Method not allowed");
+            }
+        });
+        server.createContext("/api/notifications/mark-all-read", exchange -> {
+            if ("POST".equals(exchange.getRequestMethod())) {
+                notificationController.markAllAsRead(exchange);
+            } else {
+                ApiResponse.sendError(exchange, 405, "Method not allowed");
+            }
+        });
+        
         // Health check endpoint
         server.createContext("/api/health", exchange -> {
             String response = "{\"status\":\"ok\",\"timestamp\":" + System.currentTimeMillis() + "}";
@@ -76,6 +136,10 @@ public class ApiServer {
      */
     public void start() {
         server.start();
+        
+        // Initialize auction timers for active auctions
+        AuctionTimerManager.getInstance().initializeActiveAuctionTimers();
+        
         System.out.println("[ApiServer] REST API Server started on http://localhost:" + API_PORT);
         System.out.println("[ApiServer] API endpoints available at http://localhost:" + API_PORT + "/api/");
     }
@@ -85,6 +149,7 @@ public class ApiServer {
      */
     public void stop() {
         if (server != null) {
+            AuctionTimerManager.getInstance().shutdown();
             server.stop(0);
             System.out.println("[ApiServer] REST API Server stopped");
         }

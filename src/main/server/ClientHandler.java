@@ -1,14 +1,15 @@
 package main.server;
 
-import main.model.User;
-import main.model.Message;
-import main.model.Command;
-import main.util.WebSocketUtil;
-import main.util.ThreadPoolManager;
-
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import main.model.ChatMessage;
+import main.model.Command;
+import main.model.Message;
+import main.model.User;
+import main.util.DatabaseManager;
+import main.util.ThreadPoolManager;
+import main.util.WebSocketUtil;
 
 /**
  * Handles individual client connections using WebSocket protocol
@@ -239,17 +240,57 @@ public class ClientHandler implements Runnable {
             // Send to target user
             ClientHandler targetHandler = userManager.getClientHandler(privateMessage.getTargetUser());
             if (targetHandler != null) {
-                targetHandler.sendMessage("[Private from " + user.getUsername() + "]: " + 
-                    privateMessage.getContent().replace("[Private] ", ""));
+                // Extract message content without [Private] prefix but keep auction tags
+                String content = privateMessage.getContent();
+                if (content.startsWith("[Private] ")) {
+                    content = content.substring(10); // Remove "[Private] " (10 characters)
+                }
+                
+                System.out.println("[PrivateMsg] From: " + user.getUsername() + " To: " + 
+                    privateMessage.getTargetUser() + " Content: " + content);
+                
+                // Extract auction ID if present and save to database
+                String auctionId = extractAuctionId(content);
+                if (auctionId != null) {
+                    // Remove [Auction:ID] tag from content for storage
+                    String cleanContent = content.replaceFirst("\\[Auction:" + auctionId + "\\]\\s*", "");
+                    
+                    ChatMessage chatMessage = new ChatMessage(
+                        auctionId,
+                        user.getUsername(),
+                        privateMessage.getTargetUser(),
+                        cleanContent,
+                        System.currentTimeMillis()
+                    );
+                    
+                    DatabaseManager.getInstance().saveChatMessage(chatMessage);
+                    System.out.println("[PrivateMsg] Saved to database: auction=" + auctionId);
+                }
+                
+                targetHandler.sendMessage("[Private from " + user.getUsername() + "] " + content);
                 
                 // Confirm to sender
-                sendMessage("[Private to " + privateMessage.getTargetUser() + "]: " + 
-                    privateMessage.getContent().replace("[Private] ", ""));
+                sendMessage("[Private to " + privateMessage.getTargetUser() + "] " + content);
             }
         } else {
             // Error message from bot
             sendMessage(formatMessageForDisplay(privateMessage));
         }
+    }
+    
+    /**
+     * Extract auction ID from message content
+     */
+    private String extractAuctionId(String content) {
+        if (content == null) return null;
+        
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\[Auction:([^\\]]+)\\]");
+        java.util.regex.Matcher matcher = pattern.matcher(content);
+        
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
     }
     
     public void sendMessage(String message) {

@@ -79,6 +79,27 @@ public class WebSocketBidController implements HttpHandler {
     }
     
     /**
+     * Broadcast auction expiration notification
+     */
+    public static void broadcastAuctionExpiration(String auctionId, String notificationJson) {
+        Set<WebSocketConnection> subscribers = auctionSubscribers.get(auctionId);
+        if (subscribers != null && !subscribers.isEmpty()) {
+            System.out.println("[WebSocketBidController] Broadcasting expiration to " + 
+                             subscribers.size() + " subscribers for auction " + auctionId);
+            
+            for (WebSocketConnection conn : subscribers) {
+                try {
+                    conn.send(notificationJson);
+                } catch (Exception e) {
+                    System.err.println("[WebSocketBidController] Failed to send expiration notification: " + 
+                                     e.getMessage());
+                    subscribers.remove(conn);
+                }
+            }
+        }
+    }
+    
+    /**
      * Subscribe a client to auction updates
      */
     public static void subscribe(String auctionId, WebSocketConnection connection) {

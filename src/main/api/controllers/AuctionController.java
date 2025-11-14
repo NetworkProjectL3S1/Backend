@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import main.api.ApiResponse;
 import main.model.Auction;
+import main.util.AuctionTimerManager;
 import main.util.DatabaseManager;
 
 /**
@@ -102,6 +103,9 @@ public class AuctionController implements HttpHandler {
             );
             
             if (auction != null) {
+                // Schedule expiration timer
+                AuctionTimerManager.getInstance().scheduleAuctionExpiration(auction);
+                
                 String json = auctionToJson(auction);
                 ApiResponse.sendCreatedRaw(exchange, json);
             } else {
