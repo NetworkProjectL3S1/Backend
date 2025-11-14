@@ -44,6 +44,10 @@ public class AuctionController implements HttpHandler {
                 handleCreateAuction(exchange);
             } else if (path.endsWith("/list") && "GET".equals(method)) {
                 handleListAuctions(exchange);
+            } else if (path.endsWith("/seller") && "GET".equals(method)) {
+                handleGetSellerAuctions(exchange);
+            } else if (path.matches(".*/auctions/[^/]+/delete") && "DELETE".equals(method)) {
+                handleDeleteAuction(exchange);
             } else if (path.matches(".*/auctions/[^/]+") && "GET".equals(method)) {
                 handleGetAuction(exchange);
             } else if (path.endsWith("/auctions") && "GET".equals(method)) {
@@ -148,6 +152,60 @@ public class AuctionController implements HttpHandler {
         } else {
             ApiResponse.sendError(exchange, 404, "Auction not found");
         }
+    }
+    
+    /**
+     * DELETE /api/auctions/{auctionId}/delete
+     * Delete an auction
+     */
+    private void handleDeleteAuction(HttpExchange exchange) throws IOException {
+        String path = exchange.getRequestURI().getPath();
+        String auctionId = path.substring(path.lastIndexOf('/') - 36, path.lastIndexOf('/'));
+        
+        // Verify auction exists
+        Auction auction = dbManager.getAuction(auctionId);
+        if (auction == null) {
+            ApiResponse.sendError(exchange, 404, "Auction not found");
+            return;
+        }
+        
+        boolean deleted = dbManager.deleteAuction(auctionId);
+        
+        if (deleted) {
+            ApiResponse.sendSuccessRaw(exchange, "{\"message\":\"Auction deleted successfully\"}");
+        } else {
+            ApiResponse.sendError(exchange, 500, "Failed to delete auction");
+        }
+    }
+    
+    /**
+     * GET /api/auctions/seller?sellerId=xxx
+     * Get auctions by seller
+     */
+    private void handleGetSellerAuctions(HttpExchange exchange) throws IOException {
+        String query = exchange.getRequestURI().getQuery();
+        
+        if (query == null || !query.contains("sellerId=")) {
+            ApiResponse.sendError(exchange, 400, "Missing sellerId parameter");
+            return;
+        }
+        
+        String sellerId = query.split("sellerId=")[1].split("&")[0];
+        Collection<Auction> allAuctions = dbManager.getAllAuctions();
+        
+        // Filter auctions by sellerId
+        StringBuilder jsonArray = new StringBuilder("[");
+        boolean first = true;
+        for (Auction auction : allAuctions) {
+            if (auction.getSellerId().equals(sellerId)) {
+                if (!first) jsonArray.append(",");
+                jsonArray.append(auctionToJson(auction));
+                first = false;
+            }
+        }
+        jsonArray.append("]");
+        
+        ApiResponse.sendSuccessRaw(exchange, jsonArray.toString());
     }
     
     /**

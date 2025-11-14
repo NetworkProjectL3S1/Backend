@@ -54,6 +54,7 @@ public class ApiServer {
         server.createContext("/api/auth/update-profile", authController);
         
         // Auction endpoints
+        server.createContext("/api/auctions/seller", auctionController);
         server.createContext("/api/auctions", auctionController);
         server.createContext("/api/auctions/create", auctionController);
         server.createContext("/api/auctions/list", auctionController);
