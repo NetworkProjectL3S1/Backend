@@ -172,6 +172,9 @@ public class ClientHandler implements Runnable {
         if (userManager.addUser(user, this)) {
             sendMessage("Welcome, " + username + "! You are now connected to the chat.");
             
+            // Send recent chat history to new user
+            sendChatHistory();
+            
             // Send welcome message to user
             Message welcomeMessage = chatBot.generateWelcomeMessage(username);
             sendMessage(formatMessageForDisplay(welcomeMessage));
@@ -304,6 +307,42 @@ public class ClientHandler implements Runnable {
         
         server.removeClientHandler(this);
         System.out.println("Client connection closed and cleaned up");
+    }
+    
+    /**
+     * Send recent chat history to the newly connected user
+     */
+    private void sendChatHistory() {
+        try {
+            // Get recent messages from server (last 20 messages)
+            java.util.List<Message> recentMessages = server.getRecentMessages(20);
+            
+            if (recentMessages.isEmpty()) {
+                sendMessage("[SYSTEM] No recent chat history available.");
+                return;
+            }
+            
+            sendMessage("[SYSTEM] Loading recent chat history...");
+            
+            // Send each message in chronological order
+            for (Message message : recentMessages) {
+                // Don't send join/leave messages in history to avoid confusion
+                if (message.getType() != Message.MessageType.JOIN && 
+                    message.getType() != Message.MessageType.LEAVE) {
+                    String formattedMessage = formatMessageForDisplay(message);
+                    sendMessage(formattedMessage);
+                }
+            }
+            
+            sendMessage("[SYSTEM] --- End of recent history ---");
+            
+            System.out.println("[HISTORY] Sent " + recentMessages.size() + " recent messages to " + 
+                             (user != null ? user.getUsername() : "unknown user"));
+                             
+        } catch (Exception e) {
+            System.err.println("[HISTORY] Error sending chat history: " + e.getMessage());
+            sendMessage("[SYSTEM] Unable to load chat history.");
+        }
     }
     
     private String formatMessageForDisplay(Message message) {

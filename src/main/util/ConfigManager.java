@@ -39,11 +39,21 @@ public class ConfigManager {
     }
     
     private void loadConfigFile() {
+        // First try to load from classpath
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("config.properties")) {
             if (input != null) {
                 properties.load(input);
-                System.out.println("Configuration loaded from config.properties");
+                System.out.println("Configuration loaded from config.properties (classpath)");
+                return;
             }
+        } catch (IOException e) {
+            // Ignore and try file system
+        }
+        
+        // Then try to load from file system
+        try (java.io.FileInputStream input = new java.io.FileInputStream("config.properties")) {
+            properties.load(input);
+            System.out.println("Configuration loaded from config.properties (file system)");
         } catch (IOException e) {
             System.out.println("Using default configuration (config.properties not found)");
         }
@@ -51,6 +61,14 @@ public class ConfigManager {
     
     public String getString(String key) {
         return properties.getProperty(key);
+    }
+    
+    public String getProperty(String key) {
+        return properties.getProperty(key);
+    }
+    
+    public String getProperty(String key, String defaultValue) {
+        return properties.getProperty(key, defaultValue);
     }
     
     public int getInt(String key) {

@@ -3,3 +3,9 @@
 {"timestamp":"2025-11-14 03:03:32","type":"message","username":"Nuraj","content":"hello there"}
 {"timestamp":"2025-11-14 03:03:51","type":"message","username":"Malidu","content":"hi"}
 {"timestamp":"2025-11-14 03:05:22","type":"message","username":"Malidu","content":"hello there"}
+{"timestamp":"2025-11-14 09:51:30","type":"message","username":"Nuraj","content":"hey there"}
+{"timestamp":"2025-11-14 09:51:45","type":"message","username":"Malidu","content":"is anyone here"}
+{"timestamp":"2025-11-14 09:52:04","type":"message","username":"Nuraj","content":"heyyyy"}
+{"timestamp":"2025-11-14 09:52:11","type":"message","username":"Malidu","content":"how r u doing ?"}
+{"timestamp":"2025-11-14 09:52:28","type":"message","username":"Malidu","content":"yoo"}
+{"timestamp":"2025-11-14 09:52:28","type":"bot_response","username":"ChatBot","content":"That's interesting, Malidu! That's interesting! Can you tell me more?"}

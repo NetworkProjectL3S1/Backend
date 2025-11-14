@@ -13,5 +13,15 @@ if [ ! -d "build" ]; then
     ./compile.sh
 fi
 
+# Set up classpath with MySQL driver if available
+MYSQL_JAR="lib/mysql-connector-j-8.2.0.jar"
+if [ -f "$MYSQL_JAR" ]; then
+    CLASSPATH="build:$MYSQL_JAR"
+    echo "🗄️  Using MySQL database storage"
+else
+    CLASSPATH="build"
+    echo "📁 Using file-based storage (MySQL driver not found)"
+fi
+
 # Start the server
-java -cp build main.server.ChatServer $PORT
+java -cp "$CLASSPATH" main.server.ChatServer $PORT

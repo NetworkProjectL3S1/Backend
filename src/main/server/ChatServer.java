@@ -2,7 +2,7 @@ package main.server;
 
 import main.model.Message;
 import main.util.ThreadPoolManager;
-import main.util.MessageStorage;
+import main.util.StorageManager;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -25,7 +25,7 @@ public class ChatServer {
     
     private final ThreadPoolManager threadPoolManager;
     private final UserManager userManager;
-    private final MessageStorage messageStorage;
+    private final StorageManager messageStorage;
     
     public ChatServer() {
         this(DEFAULT_PORT);
@@ -35,7 +35,7 @@ public class ChatServer {
         this.port = port;
         this.threadPoolManager = ThreadPoolManager.getInstance();
         this.userManager = UserManager.getInstance();
-        this.messageStorage = MessageStorage.getInstance();
+        this.messageStorage = StorageManager.getInstance();
     }
     
     /**
