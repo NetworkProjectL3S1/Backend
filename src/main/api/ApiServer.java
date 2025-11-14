@@ -6,6 +6,7 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 import main.api.controllers.AuctionController;
 import main.api.controllers.BidController;
+import main.api.controllers.AuthController;
 
 /**
  * REST API Server for Auction System
@@ -19,6 +20,7 @@ public class ApiServer {
     private HttpServer server;
     private AuctionController auctionController;
     private BidController bidController;
+    private AuthController authController;
     
     public ApiServer() throws IOException {
         // Initialize HTTP server
@@ -27,6 +29,7 @@ public class ApiServer {
         // Initialize controllers
         auctionController = new AuctionController();
         bidController = new BidController();
+        authController = new AuthController();
         
         // Set up routes
         setupRoutes();
@@ -43,6 +46,12 @@ public class ApiServer {
     private void setupRoutes() {
         // CORS preflight handler
         server.createContext("/api/", new CorsHandler());
+        
+        // Authentication endpoints
+        server.createContext("/api/auth/register", authController);
+        server.createContext("/api/auth/login", authController);
+        server.createContext("/api/auth/verify", authController);
+        server.createContext("/api/auth/update-profile", authController);
         
         // Auction endpoints
         server.createContext("/api/auctions", auctionController);

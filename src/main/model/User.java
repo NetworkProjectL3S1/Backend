@@ -5,6 +5,10 @@ package main.model;
  */
 public class User {
     private String username;
+    private String password;
+    private String email;
+    private String role;
+    private String token;
     private String sessionId;
     private long connectTime;
     private boolean isActive;
@@ -12,6 +16,16 @@ public class User {
     public User(String username, String sessionId) {
         this.username = username;
         this.sessionId = sessionId;
+        this.connectTime = System.currentTimeMillis();
+        this.isActive = true;
+    }
+    
+    public User(String username, String password, String email, String role, String token) {
+        this.username = username;
+        this.password = password;
+        this.email = email;
+        this.role = role;
+        this.token = token;
         this.connectTime = System.currentTimeMillis();
         this.isActive = true;
     }
@@ -42,6 +56,38 @@ public class User {
     
     public void setActive(boolean active) {
         this.isActive = active;
+    }
+    
+    public String getPassword() {
+        return password;
+    }
+    
+    public void setPassword(String password) {
+        this.password = password;
+    }
+    
+    public String getEmail() {
+        return email;
+    }
+    
+    public void setEmail(String email) {
+        this.email = email;
+    }
+    
+    public String getRole() {
+        return role;
+    }
+    
+    public void setRole(String role) {
+        this.role = role;
+    }
+    
+    public String getToken() {
+        return token;
+    }
+    
+    public void setToken(String token) {
+        this.token = token;
     }
     
     @Override

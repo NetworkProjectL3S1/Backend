@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import main.model.Auction;
 import main.model.Auction.AuctionStatus;
 import main.model.Bid;
+import main.model.User;
 
 /**
  * SQLite Database Manager for Auctions and Bids
@@ -93,6 +94,19 @@ public class DatabaseManager {
                 FOREIGN KEY (auction_id) REFERENCES auctions(auction_id)
             )
         """;
+        
+        String createUsersTable = """
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                email TEXT,
+                role TEXT NOT NULL DEFAULT 'BUYER',
+                token TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """;
 
         String createBidsIndex = """
             CREATE INDEX IF NOT EXISTS idx_bids_auction_id 
@@ -103,12 +117,25 @@ public class DatabaseManager {
             CREATE INDEX IF NOT EXISTS idx_bids_timestamp 
             ON bids(timestamp DESC)
         """;
+        
+        String createUsersUsernameIndex = """
+            CREATE INDEX IF NOT EXISTS idx_users_username 
+            ON users(username)
+        """;
+        
+        String createUsersTokenIndex = """
+            CREATE INDEX IF NOT EXISTS idx_users_token 
+            ON users(token)
+        """;
 
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createAuctionsTable);
             stmt.execute(createBidsTable);
+            stmt.execute(createUsersTable);
             stmt.execute(createBidsIndex);
             stmt.execute(createBidsTimestampIndex);
+            stmt.execute(createUsersUsernameIndex);
+            stmt.execute(createUsersTokenIndex);
             System.out.println("[DatabaseManager] Database tables created successfully");
         }
     }
@@ -566,5 +593,193 @@ public class DatabaseManager {
             System.err.println("[DatabaseManager] Backup failed: " + e.getMessage());
             return false;
         }
+    }
+    
+    // ==================== User Authentication Methods ====================
+    
+    /**
+     * Register a new user
+     */
+    public synchronized boolean registerUser(String username, String password, String email, String role, String token) {
+        String sql = """
+            INSERT INTO users (username, password, email, role, token, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            pstmt.setString(2, hashPassword(password));
+            pstmt.setString(3, email);
+            pstmt.setString(4, role);
+            pstmt.setString(5, token);
+            
+            pstmt.executeUpdate();
+            System.out.println("[DatabaseManager] User registered: " + username);
+            return true;
+            
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Failed to register user: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Authenticate user with username and password
+     */
+    public User authenticateUser(String username, String password) {
+        String sql = "SELECT * FROM users WHERE username = ?";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                String storedHash = rs.getString("password");
+                if (verifyPassword(password, storedHash)) {
+                    return createUserFromResultSet(rs);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Authentication error: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * Get user by token
+     */
+    public User getUserByToken(String token) {
+        String sql = "SELECT * FROM users WHERE token = ?";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, token);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                return createUserFromResultSet(rs);
+            }
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Failed to get user by token: " + e.getMessage());
+        }
+        return null;
+    }
+    
+    /**
+     * Check if username exists
+     */
+    public boolean userExists(String username) {
+        String sql = "SELECT COUNT(*) FROM users WHERE username = ?";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Failed to check user existence: " + e.getMessage());
+        }
+        return false;
+    }
+    
+    /**
+     * Update user token
+     */
+    public synchronized boolean updateUserToken(String username, String token) {
+        String sql = "UPDATE users SET token = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, token);
+            pstmt.setString(2, username);
+            
+            pstmt.executeUpdate();
+            return true;
+            
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Failed to update token: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Update user email
+     */
+    public synchronized boolean updateUserEmail(String username, String email) {
+        String sql = "UPDATE users SET email = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, email);
+            pstmt.setString(2, username);
+            
+            int rowsAffected = pstmt.executeUpdate();
+            System.out.println("[DatabaseManager] Email updated for user: " + username);
+            return rowsAffected > 0;
+            
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Failed to update email: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Update user password
+     */
+    public synchronized boolean updateUserPassword(String username, String newPassword) {
+        String sql = "UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, hashPassword(newPassword));
+            pstmt.setString(2, username);
+            
+            int rowsAffected = pstmt.executeUpdate();
+            System.out.println("[DatabaseManager] Password updated for user: " + username);
+            return rowsAffected > 0;
+            
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Failed to update password: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Create User object from ResultSet
+     */
+    private User createUserFromResultSet(ResultSet rs) throws SQLException {
+        return new User(
+            rs.getString("username"),
+            rs.getString("password"),
+            rs.getString("email"),
+            rs.getString("role"),
+            rs.getString("token")
+        );
+    }
+    
+    /**
+     * Hash password (simple implementation - use BCrypt in production)
+     */
+    private String hashPassword(String password) {
+        // Simple hash for now - in production, use BCrypt or similar
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(password.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            System.err.println("[DatabaseManager] Hashing error: " + e.getMessage());
+            return password; // Fallback (not secure)
+        }
+    }
+    
+    /**
+     * Verify password against hash
+     */
+    private boolean verifyPassword(String password, String hash) {
+        return hashPassword(password).equals(hash);
     }
 }
