@@ -2,14 +2,14 @@ package main.api.controllers;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 import main.api.ApiResponse;
 import main.model.Auction;
 import main.util.DatabaseManager;
@@ -65,14 +65,11 @@ public class AuctionController implements HttpHandler {
     
     /**
      * POST /api/auctions/create
-     * Create a new auction
+     * Create a new auction using Java NIO
      */
     private void handleCreateAuction(HttpExchange exchange) throws IOException {
-        // Read request body
-        String requestBody = new BufferedReader(
-            new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))
-            .lines()
-            .collect(Collectors.joining("\n"));
+        // Read request body using NIO Channel
+        String requestBody = readRequestBodyNIO(exchange);
         
         // Parse JSON manually (simple parsing)
         Map<String, String> params = parseSimpleJson(requestBody);
@@ -114,6 +111,27 @@ public class AuctionController implements HttpHandler {
         } catch (NumberFormatException e) {
             ApiResponse.sendError(exchange, 400, "Invalid number format for basePrice or duration");
         }
+    }
+    
+    /**
+     * Read request body using Java NIO Channel
+     */
+    private String readRequestBodyNIO(HttpExchange exchange) throws IOException {
+        ReadableByteChannel channel = Channels.newChannel(exchange.getRequestBody());
+        ByteBuffer buffer = ByteBuffer.allocate(8192);
+        StringBuilder requestBody = new StringBuilder();
+        
+        try {
+            while (channel.read(buffer) > 0) {
+                buffer.flip();
+                requestBody.append(StandardCharsets.UTF_8.decode(buffer));
+                buffer.clear();
+            }
+        } finally {
+            channel.close();
+        }
+        
+        return requestBody.toString();
     }
     
     /**
