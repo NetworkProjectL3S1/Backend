@@ -174,21 +174,33 @@ public class AuthController implements HttpHandler {
      * Handle token verification
      */
     private void handleVerifyToken(HttpExchange exchange) throws IOException {
-        if (!"POST".equals(exchange.getRequestMethod())) {
-            ApiResponse.sendError(exchange, 405, "Method not allowed");
-            return;
-        }
-
+        String method = exchange.getRequestMethod();
+        
         try {
-            String requestBody = new BufferedReader(
-                new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))
-                .lines()
-                .collect(Collectors.joining("\n"));
+            String token = null;
+            
+            // Support both GET (with Authorization header) and POST (with token in body)
+            if ("GET".equals(method)) {
+                // Extract token from Authorization header
+                String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    token = authHeader.substring(7);
+                }
+            } else if ("POST".equals(method)) {
+                // Extract token from request body
+                String requestBody = new BufferedReader(
+                    new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))
+                    .lines()
+                    .collect(Collectors.joining("\n"));
 
-            Map<String, String> json = parseJson(requestBody);
-            String token = json.getOrDefault("token", "").trim();
+                Map<String, String> json = parseJson(requestBody);
+                token = json.getOrDefault("token", "").trim();
+            } else {
+                ApiResponse.sendError(exchange, 405, "Method not allowed");
+                return;
+            }
 
-            if (token.isEmpty()) {
+            if (token == null || token.isEmpty()) {
                 ApiResponse.sendError(exchange, 400, "Token is required");
                 return;
             }
