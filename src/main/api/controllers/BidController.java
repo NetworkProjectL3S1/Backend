@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import main.api.ApiResponse;
 import main.model.Auction;
@@ -17,13 +18,16 @@ import main.util.DatabaseManager;
 
 /**
  * Controller for Bid-related API endpoints
+ * Uses thread synchronization to prevent race conditions
  */
 public class BidController implements HttpHandler {
     
     private final DatabaseManager dbManager;
+    private final ReentrantLock bidLock;
     
     public BidController() {
         this.dbManager = DatabaseManager.getInstance();
+        this.bidLock = new ReentrantLock(true); // Fair lock to prevent starvation
     }
     
     @Override
@@ -58,7 +62,7 @@ public class BidController implements HttpHandler {
     
     /**
      * POST /api/bids/place
-     * Place a new bid on an auction
+     * Place a new bid on an auction with thread synchronization
      */
     private void handlePlaceBid(HttpExchange exchange) throws IOException {
         // Read request body
@@ -82,52 +86,84 @@ public class BidController implements HttpHandler {
         try {
             double amount = Double.parseDouble(amountStr);
             
-            // Get auction to verify it exists and is active
-            Auction auction = dbManager.getAuction(auctionId);
-            
-            if (auction == null) {
-                ApiResponse.sendError(exchange, 404, "Auction not found");
-                return;
-            }
-            
-            if (auction.getStatus() != Auction.AuctionStatus.ACTIVE) {
-                ApiResponse.sendError(exchange, 400, "Auction is not active");
-                return;
-            }
-            
-            if (auction.hasExpired()) {
-                ApiResponse.sendError(exchange, 400, "Auction has expired");
-                return;
-            }
-            
-            if (amount <= auction.getCurrentHighestBid()) {
-                ApiResponse.sendError(exchange, 400, 
-                    String.format("Bid amount must be greater than current highest bid (%.2f)", 
-                    auction.getCurrentHighestBid()));
-                return;
-            }
-            
-            // Create and save bid
-            Bid bid = new Bid(auctionId, userId, amount);
-            boolean success = dbManager.saveBid(bid);
-            
-            if (success) {
-                // Update auction with new highest bid
-                auction.setCurrentHighestBid(amount);
-                auction.setCurrentHighestBidder(userId);
-                dbManager.updateAuction(auction);
+            // Acquire lock to prevent race conditions when multiple bids arrive simultaneously
+            bidLock.lock();
+            try {
+                // Get auction to verify it exists and is active
+                Auction auction = dbManager.getAuction(auctionId);
                 
-                // Broadcast bid update to all connected WebSocket clients
-                WebSocketBidController.broadcastBid(auctionId, bid, auction);
+                if (auction == null) {
+                    ApiResponse.sendError(exchange, 404, "Auction not found");
+                    return;
+                }
                 
-                String json = bidToJson(bid);
-                ApiResponse.sendCreatedRaw(exchange, json);
-            } else {
-                ApiResponse.sendError(exchange, 500, "Failed to place bid");
+                if (auction.getStatus() != Auction.AuctionStatus.ACTIVE) {
+                    ApiResponse.sendError(exchange, 400, "Auction is not active");
+                    return;
+                }
+                
+                if (auction.hasExpired()) {
+                    ApiResponse.sendError(exchange, 400, "Auction has expired");
+                    return;
+                }
+                
+                // Re-check current highest bid inside lock to prevent race condition
+                if (amount <= auction.getCurrentHighestBid()) {
+                    ApiResponse.sendError(exchange, 400, 
+                        String.format("Bid amount must be greater than current highest bid (%.2f)", 
+                        auction.getCurrentHighestBid()));
+                    return;
+                }
+                
+                // Create bid
+                Bid bid = new Bid(auctionId, userId, amount);
+                
+                // Perform database transaction: save bid and update auction atomically
+                boolean success = processBidTransaction(bid, auction);
+                
+                if (success) {
+                    // Broadcast bid update to all connected WebSocket clients
+                    WebSocketBidController.broadcastBid(auctionId, bid, auction);
+                    
+                    String json = bidToJson(bid);
+                    ApiResponse.sendCreatedRaw(exchange, json);
+                } else {
+                    ApiResponse.sendError(exchange, 500, "Failed to place bid - transaction rolled back");
+                }
+                
+            } finally {
+                // Always release lock, even if exception occurs
+                bidLock.unlock();
             }
             
         } catch (NumberFormatException e) {
             ApiResponse.sendError(exchange, 400, "Invalid number format for amount");
+        }
+    }
+    
+    /**
+     * Process bid transaction atomically
+     * Ensures bid is saved and auction is updated in a single database transaction
+     */
+    private boolean processBidTransaction(Bid bid, Auction auction) {
+        try {
+            // Use transactional method to ensure atomicity
+            // Both bid save and auction update happen in single transaction
+            boolean success = dbManager.saveBidWithTransaction(bid, auction);
+            
+            if (!success) {
+                System.err.println("[BidController] Transaction failed - changes rolled back");
+                return false;
+            }
+            
+            System.out.println("[BidController] Transaction successful for bid on auction " + 
+                             auction.getAuctionId());
+            return true;
+            
+        } catch (Exception e) {
+            System.err.println("[BidController] Transaction error: " + e.getMessage());
+            e.printStackTrace();
+            return false;
         }
     }
     

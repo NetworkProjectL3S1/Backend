@@ -290,6 +290,84 @@ public class DatabaseManager {
             return false;
         }
     }
+    
+    /**
+     * Save bid and update auction in a single transaction
+     * Ensures atomicity - either both operations succeed or both fail
+     */
+    public synchronized boolean saveBidWithTransaction(Bid bid, Auction auction) {
+        if (bid == null || auction == null) {
+            return false;
+        }
+        
+        try {
+            // Disable auto-commit to start transaction
+            connection.setAutoCommit(false);
+            
+            // Save bid
+            String bidSql = """
+                INSERT INTO bids (auction_id, user_id, amount, timestamp) 
+                VALUES (?, ?, ?, ?)
+            """;
+            
+            try (PreparedStatement bidStmt = connection.prepareStatement(bidSql)) {
+                bidStmt.setString(1, bid.getAuctionId());
+                bidStmt.setString(2, bid.getUserId());
+                bidStmt.setDouble(3, bid.getAmount());
+                bidStmt.setLong(4, bid.getTimestamp());
+                bidStmt.executeUpdate();
+            }
+            
+            // Update auction
+            String auctionSql = """
+                INSERT OR REPLACE INTO auctions 
+                (auction_id, item_name, item_description, seller_id, base_price, 
+                 current_highest_bid, current_highest_bidder, status, category, 
+                 created_time, end_time, duration)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+            
+            try (PreparedStatement auctionStmt = connection.prepareStatement(auctionSql)) {
+                auctionStmt.setString(1, auction.getAuctionId());
+                auctionStmt.setString(2, auction.getItemName());
+                auctionStmt.setString(3, auction.getItemDescription());
+                auctionStmt.setString(4, auction.getSellerId());
+                auctionStmt.setDouble(5, auction.getBasePrice());
+                auctionStmt.setDouble(6, auction.getCurrentHighestBid());
+                auctionStmt.setString(7, auction.getCurrentHighestBidder());
+                auctionStmt.setString(8, auction.getStatus().name());
+                auctionStmt.setString(9, auction.getCategory());
+                auctionStmt.setLong(10, auction.getCreatedTime());
+                auctionStmt.setLong(11, auction.getEndTime());
+                auctionStmt.setLong(12, auction.getDuration());
+                auctionStmt.executeUpdate();
+            }
+            
+            // Commit transaction
+            connection.commit();
+            
+            System.out.println("[DatabaseManager] Transaction committed: Bid saved and auction updated for " + 
+                             auction.getAuctionId());
+            return true;
+            
+        } catch (SQLException e) {
+            System.err.println("[DatabaseManager] Transaction failed, rolling back: " + e.getMessage());
+            try {
+                connection.rollback();
+            } catch (SQLException rollbackEx) {
+                System.err.println("[DatabaseManager] Rollback failed: " + rollbackEx.getMessage());
+            }
+            return false;
+            
+        } finally {
+            try {
+                // Re-enable auto-commit
+                connection.setAutoCommit(true);
+            } catch (SQLException e) {
+                System.err.println("[DatabaseManager] Failed to reset auto-commit: " + e.getMessage());
+            }
+        }
+    }
 
     /**
      * Load all bids for a specific auction
