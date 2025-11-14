@@ -5,8 +5,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 import main.api.controllers.AuctionController;
-import main.api.controllers.BidController;
 import main.api.controllers.AuthController;
+import main.api.controllers.BidController;
 
 /**
  * REST API Server for Auction System
