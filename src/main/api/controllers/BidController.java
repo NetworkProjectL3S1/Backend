@@ -117,6 +117,9 @@ public class BidController implements HttpHandler {
                 auction.setCurrentHighestBidder(userId);
                 dbManager.updateAuction(auction);
                 
+                // Broadcast bid update to all connected WebSocket clients
+                WebSocketBidController.broadcastBid(auctionId, bid, auction);
+                
                 String json = bidToJson(bid);
                 ApiResponse.sendCreatedRaw(exchange, json);
             } else {

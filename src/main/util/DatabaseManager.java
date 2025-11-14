@@ -560,7 +560,8 @@ public class DatabaseManager {
         return new Bid(
             rs.getString("auction_id"),
             rs.getString("user_id"),
-            rs.getDouble("amount")
+            rs.getDouble("amount"),
+            rs.getLong("timestamp")
         );
     }
 
