@@ -356,6 +356,13 @@ public class DatabaseManager {
         }
         
         try {
+            // Update auction object with new bid BEFORE saving to database
+            boolean bidAccepted = auction.placeBid(bid);
+            if (!bidAccepted) {
+                System.err.println("[DatabaseManager] Bid was not accepted by auction logic");
+                return false;
+            }
+            
             // Disable auto-commit to start transaction
             connection.setAutoCommit(false);
             
@@ -373,7 +380,7 @@ public class DatabaseManager {
                 bidStmt.executeUpdate();
             }
             
-            // Update auction
+            // Update auction with new highest bid and bidder
             String auctionSql = """
                 INSERT OR REPLACE INTO auctions 
                 (auction_id, item_name, item_description, seller_id, base_price, 
@@ -395,6 +402,12 @@ public class DatabaseManager {
                 auctionStmt.setLong(10, auction.getCreatedTime());
                 auctionStmt.setLong(11, auction.getEndTime());
                 auctionStmt.setLong(12, auction.getDuration());
+                
+                System.out.println("[DatabaseManager] Saving auction to DB:");
+                System.out.println("[DatabaseManager]   Auction ID: " + auction.getAuctionId());
+                System.out.println("[DatabaseManager]   Current Highest Bid: $" + auction.getCurrentHighestBid());
+                System.out.println("[DatabaseManager]   Current Highest Bidder: " + auction.getCurrentHighestBidder());
+                
                 auctionStmt.executeUpdate();
             }
             
@@ -402,7 +415,8 @@ public class DatabaseManager {
             connection.commit();
             
             System.out.println("[DatabaseManager] Transaction committed: Bid saved and auction updated for " + 
-                             auction.getAuctionId());
+                             auction.getAuctionId() + " - New highest bidder: " + auction.getCurrentHighestBidder() +
+                             " with bid: $" + auction.getCurrentHighestBid());
             return true;
             
         } catch (SQLException e) {
@@ -673,13 +687,24 @@ public class DatabaseManager {
         // We need to use reflection or add setters to restore the saved state
         // For now, we'll create a new auction and manually set the bid if exists
         String highestBidder = rs.getString("current_highest_bidder");
+        double highestBid = rs.getDouble("current_highest_bid");
+        
+        System.out.println("[DatabaseManager] Loading auction from DB:");
+        System.out.println("[DatabaseManager]   Auction ID: " + auction.getAuctionId());
+        System.out.println("[DatabaseManager]   Item: " + auction.getItemName());
+        System.out.println("[DatabaseManager]   Highest Bidder from DB: " + highestBidder);
+        System.out.println("[DatabaseManager]   Highest Bid from DB: $" + highestBid);
+        
         if (highestBidder != null && !highestBidder.isEmpty()) {
             Bid bid = new Bid(
                 auction.getAuctionId(),
                 highestBidder,
-                rs.getDouble("current_highest_bid")
+                highestBid
             );
             auction.placeBid(bid);
+            System.out.println("[DatabaseManager]   ✅ Bid restored to auction object");
+        } else {
+            System.out.println("[DatabaseManager]   ⚠️ No bidder found in database");
         }
 
         // Set status

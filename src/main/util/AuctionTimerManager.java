@@ -73,18 +73,32 @@ public class AuctionTimerManager {
         
         System.out.println("[AuctionTimerManager] Auction expired: " + auctionId);
         
+        // Fetch latest auction data from database to get current bids
+        Auction latestAuction = dbManager.getAuction(auctionId);
+        if (latestAuction == null) {
+            System.err.println("[AuctionTimerManager] Error: Could not fetch auction from database: " + auctionId);
+            auctionTimers.remove(auctionId);
+            return;
+        }
+        
         // Update auction status to CLOSED
-        auction.setStatus(Auction.AuctionStatus.CLOSED);
+        latestAuction.setStatus(Auction.AuctionStatus.CLOSED);
         dbManager.updateAuctionStatus(auctionId, Auction.AuctionStatus.CLOSED);
         
-        // Get winner and seller info
-        String winner = auction.getCurrentHighestBidder();
-        String seller = auction.getSellerId();
-        double finalPrice = auction.getCurrentHighestBid();
-        String itemName = auction.getItemName();
+        // Get winner and seller info from latest auction data
+        String winner = latestAuction.getCurrentHighestBidder();
+        String seller = latestAuction.getSellerId();
+        double finalPrice = latestAuction.getCurrentHighestBid();
+        String itemName = latestAuction.getItemName();
+        
+        System.out.println("[AuctionTimerManager] Auction " + auctionId + " final state:");
+        System.out.println("[AuctionTimerManager]   Item: " + itemName);
+        System.out.println("[AuctionTimerManager]   Seller: " + seller);
+        System.out.println("[AuctionTimerManager]   Winner: " + (winner != null ? winner : "No bids"));
+        System.out.println("[AuctionTimerManager]   Final Price: $" + finalPrice);
         
         // Broadcast expiration notification to all subscribers
-        broadcastExpiration(auctionId, auction, winner, seller, finalPrice, itemName);
+        broadcastExpiration(auctionId, latestAuction, winner, seller, finalPrice, itemName);
         
         // Remove timer
         auctionTimers.remove(auctionId);
