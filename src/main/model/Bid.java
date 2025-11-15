@@ -13,6 +13,14 @@ public class Bid {
         this.timestamp = System.currentTimeMillis();
     }
 
+    // Constructor with explicit timestamp (for loading from database)
+    public Bid(String auctionId, String userId, double amount, long timestamp) {
+        this.auctionId = auctionId;
+        this.userId = userId;
+        this.amount = amount;
+        this.timestamp = timestamp;
+    }
+
     // --- Getters ---
     public String getAuctionId() {
         return auctionId;

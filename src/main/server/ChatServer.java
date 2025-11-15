@@ -1,14 +1,13 @@
 package main.server;
 
-import main.model.Message;
-import main.util.ThreadPoolManager;
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import main.model.Message;
+import main.util.ThreadPoolManager;
 
 /**
  * Main WebSocket chat server implementation
@@ -98,33 +97,51 @@ public class ChatServer {
         String formattedMessage = formatMessageForBroadcast(message);
         
         // Log the message to server console
-        System.out.println("[BROADCAST] " + formattedMessage);
+        System.out.println("[BROADCAST] 📢 " + formattedMessage);
+        System.out.println("[BROADCAST] Total active handlers: " + clientHandlers.size());
         
         // Send to all connected clients
-        clientHandlers.keySet().parallelStream()
-            .filter(handler -> handler != sender && handler.isConnected())
-            .forEach(handler -> {
+        int sentCount = 0;
+        for (ClientHandler handler : clientHandlers.keySet()) {
+            if (handler != sender && handler.isConnected()) {
                 try {
                     handler.sendMessage(formattedMessage);
+                    sentCount++;
+                    System.out.println("[BROADCAST] ✅ Sent to client");
                 } catch (Exception e) {
-                    System.err.println("Error broadcasting to client: " + e.getMessage());
+                    System.err.println("[BROADCAST] ❌ Error broadcasting to client: " + e.getMessage());
                     // Remove failed handler
                     removeClientHandler(handler);
                 }
-            });
+            }
+        }
+        System.out.println("[BROADCAST] 📊 Message sent to " + sentCount + " clients");
     }
     
     /**
      * Send a message to a specific user
      */
     public boolean sendMessageToUser(String username, Message message) {
+        System.out.println("[ChatServer] 📨 Attempting to send message to user: " + username);
+        System.out.println("[ChatServer] Message content: " + message.getContent());
+        
         ClientHandler targetHandler = userManager.getClientHandler(username);
-        if (targetHandler != null && targetHandler.isConnected()) {
-            String formattedMessage = formatMessageForBroadcast(message);
-            targetHandler.sendMessage(formattedMessage);
-            return true;
+        
+        if (targetHandler == null) {
+            System.out.println("[ChatServer] ❌ No handler found for user: " + username);
+            return false;
         }
-        return false;
+        
+        if (!targetHandler.isConnected()) {
+            System.out.println("[ChatServer] ❌ Handler exists but not connected for user: " + username);
+            return false;
+        }
+        
+        String formattedMessage = formatMessageForBroadcast(message);
+        System.out.println("[ChatServer] ✅ Sending formatted message: " + formattedMessage);
+        targetHandler.sendMessage(formattedMessage);
+        System.out.println("[ChatServer] ✅ Message sent successfully to " + username);
+        return true;
     }
     
     /**

@@ -1,204 +1,118 @@
-# Real-Time Auction Platform (Backend)
+# Real-Time Auction Platform with REST API
 
-A comprehensive Java implementation of a real-time auction platform with WebSocket communication, multithreading, and Java NIO. This project demonstrates advanced networking concepts, concurrent programming, file persistence, and client-server architecture.
+A comprehensive Java implementation of a real-time auction platform with REST API support, SQL database storage, WebSocket communication, multithreading, and Java NIO. Perfect for React frontend integration and modern web applications.
 
-## 🚀 Features
+## 🚀 New Features (v2.0)
 
-### Auction System (Module 2)
+### ✨ REST API Server
+- **Modern HTTP API**: Full REST API for auction and bid management
+- **React Integration**: Ready-to-use API endpoints for React frontends
+- **CORS Support**: Cross-origin resource sharing enabled
+- **JSON Responses**: Standard JSON format for all responses
+- **HTTP Methods**: GET, POST support for all operations
 
-- **Auction Creation**: Sellers can create auctions with configurable parameters
-- **Real-Time Broadcasting**: New auctions broadcast to all connected clients
-- **File Persistence**: Auctions saved using Java I/O with automatic backup
-- **Category Management**: Filter and browse auctions by category
-- **Time-Based Management**: Automatic auction expiration and status tracking
-- **Thread-Safe Operations**: Concurrent auction creation and bidding
+### 💾 SQL Database Storage
+- **SQLite Database**: Migrated from file storage to SQL database
+- **Better Performance**: Faster queries and concurrent access
+- **Data Integrity**: Foreign key constraints and transactions
+- **Easy Backup**: Simple database file backup and restore
+- **Indexing**: Optimized queries with proper indexing
 
-### Chat System
+### 🎯 Core Features
 
-- **WebSocket Communication**: Full WebSocket protocol implementation from scratch
-- **Multithreading**: Advanced thread pool management for concurrent connections
-- **Chat Bot Intelligence**: Smart bot with pattern recognition and contextual responses
-- **User Management**: Complete session management and user tracking
-- **Message Broadcasting**: Real-time message distribution to all connected clients
-- **Command System**: Rich command interface with multiple bot interactions
+#### Auction System
+- **Auction Creation**: Create auctions via REST API or server
+- **Real-Time Updates**: Live auction status and bid updates
+- **Category Management**: Filter auctions by category
+- **Time Management**: Automatic expiration tracking
+- **Thread-Safe**: Concurrent operations handled properly
 
-### Real-Time Bidding
+#### Bidding System
+- **Place Bids**: Submit bids via REST API
+- **Bid History**: Track all bids for each auction
+- **Validation**: Automatic bid amount validation
+- **Real-Time Notifications**: Instant bid updates
 
-- **Live Bid Updates**: Instant bid notifications using Java NIO
-- **Thread-Safe Bidding**: Synchronized bid placement with validation
-- **Watcher System**: Clients can watch specific auctions for updates
-- **Bid Broadcasting**: Real-time updates to all auction watchers
+## 🚀 Quick Start
 
-## Project Structure
+### Prerequisites
+- Java 11 or higher
+- macOS, Linux, or Windows with WSL
+- curl (for testing)
 
-```
-src/
-├── main/
-│   ├── server/
-│   │   ├── AuctionServer.java          # Main NIO auction server
-│   │   ├── AuctionManager.java         # [MODULE 2] Auction lifecycle management
-│   │   ├── AuctionClientHandler.java   # Individual client connection handler
-│   │   ├── BidBroadcaster.java        # Real-time bid broadcasting
-│   │   ├── ChatServer.java            # WebSocket chat server
-│   │   ├── ClientHandler.java         # Chat client handler
-│   │   ├── ChatBot.java              # Bot logic and responses
-│   │   ├── UserManager.java          # User session management
-│   │   └── ServerMain.java           # Server entry point
-│   ├── client/
-│   │   ├── AuctionCreatorClient.java  # [MODULE 2] Test client for auctions
-│   │   └── ChatClient.java           # Test client for chat
-│   ├── model/
-│   │   ├── Auction.java              # [MODULE 2] Enhanced auction model
-│   │   ├── Bid.java                  # Bid model
-│   │   ├── User.java                 # User model
-│   │   ├── Message.java              # Message model
-│   │   └── Command.java              # Command model
-│   └── util/
-│       ├── AuctionFileStorage.java   # [MODULE 2] File I/O persistence
-│       ├── WebSocketUtil.java        # WebSocket utility functions
-│       ├── ThreadPoolManager.java    # Thread pool management
-│       └── ConfigManager.java        # Configuration management
-└── test/
-    └── ChatServerTest.java           # Basic tests
+### Installation
 
-data/
-├── auctions/                         # Auction data storage
-│   ├── *.dat                        # Binary auction files
-│   ├── *.txt                        # Text exports
-│   └── index.dat                    # Auction index
-└── backups/                         # Backup storage
-    └── auctions_backup_*.dat
-```
-
-## 🏃‍♂️ Quick Start
-
-### Method 1: Using Shell Scripts (Recommended)
-
+1. **Download dependencies**
 ```bash
-# Compile the project
+./download-dependencies.sh
+```
+
+2. **Compile the project**
+```bash
 ./compile.sh
-
-# Start the auction server
-./start-server.sh
-
-# In another terminal, start the auction creator client
-./start-auction-creator.sh
-# OR on Windows:
-start-auction-creator.bat
 ```
 
-### Method 2: Using Make
+### Running the API Server
 
+**Start the REST API server:**
 ```bash
-# Compile the project
-make compile
-
-# Start the server (default port 9999)
-make server
-
-# Start auction client
-java -cp bin main.client.AuctionCreatorClient localhost 9999
+./start-api-server.sh
 ```
 
-### Method 3: Manual Commands
+The API will be available at: `http://localhost:8081/api/`
 
+### Testing the API
+
+**Create an auction:**
 ```bash
-# Compile
-javac -d bin src/main/**/*.java
-
-# Run auction server
-java -cp bin main.server.ServerMain
-
-# Run auction creator client
-java -cp bin main.client.AuctionCreatorClient localhost 9999
+curl -X POST http://localhost:8081/api/auctions/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "itemName": "Vintage Watch",
+    "itemDescription": "Beautiful 1960s watch",
+    "sellerId": "user123",
+    "basePrice": 100,
+    "duration": 60,
+    "category": "collectibles"
+  }'
 ```
 
-## 📝 Module 2: Auction Creation Usage
-
-### Creating an Auction (Interactive Client)
-
+**List all auctions:**
 ```bash
-# Start the client
-java -cp bin main.client.AuctionCreatorClient localhost 9999
-
-# Use the interactive menu
-> create
-
-Item Name: Vintage Camera
-Description: Canon AE-1 from 1976
-Seller ID: photoenthusiast
-Base Price: $250.00
-Duration (minutes): 90
-Category: photography
+curl http://localhost:8081/api/auctions/list
 ```
 
-### Creating an Auction (Programmatically)
-
-```java
-AuctionManager manager = new AuctionManager();
-
-Auction auction = manager.createAuction(
-    "Gaming Laptop",                    // itemName
-    "High-end gaming laptop, RTX 4090", // description
-    "seller123",                        // sellerId
-    1500.00,                           // basePrice
-    120,                               // duration (minutes)
-    "electronics"                      // category
-);
+**Place a bid:**
+```bash
+curl -X POST http://localhost:8081/api/bids/place \
+  -H "Content-Type: application/json" \
+  -d '{
+    "auctionId": "auction-1234",
+    "userId": "user456",
+    "amount": 150
+  }'
 ```
 
-### Protocol Commands
+## 📚 Documentation
 
-#### CREATE_AUCTION
+- **[docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)**: Complete API reference
+- **[docs/CLEANUP_GUIDE.md](docs/CLEANUP_GUIDE.md)**: Migration and cleanup guide
+- **[docs/UPGRADE_SUMMARY.md](docs/UPGRADE_SUMMARY.md)**: Upgrade details and summary
+- **[docs/DATABASE_GUIDE.md](docs/DATABASE_GUIDE.md)**: Database operations guide
+- **[docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)**: Testing procedures
+- **[react-example/](react-example/)**: React component examples
 
-```
-CREATE_AUCTION:itemName:description:sellerId:basePrice:durationMinutes:category
-```
+## 🔧 React Integration
 
-#### LIST_AUCTIONS
+See [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) and [react-example/AuctionComponents.jsx](react-example/AuctionComponents.jsx) for complete integration examples.
 
-```
-LIST_AUCTIONS              # List all active auctions
-LIST_AUCTIONS:category     # List auctions by category
-```
+## 💾 Database
 
-#### GET_AUCTION
+- **File**: `data/auction_system.db`
+- **Type**: SQLite
+- **Backups**: `data/backups/`
 
-```
-GET_AUCTION:auctionId
-```
+---
 
-#### WATCH (for bidding)
-
-```
-WATCH:auction-1
-```
-
-#### BID (place a bid)
-
-```
-BID:auction-1:amount
-```
-
-## 🔧 Module Implementation Status
-
-| Module | Feature                | Status          | Developer       |
-| ------ | ---------------------- | --------------- | --------------- |
-| 1      | User Authentication    | 🟡 In Progress  | Member 1        |
-| 2      | Auction Creation       | ✅ **Complete** | **Your Module** |
-| 3      | Bidding System         | ✅ Complete     | Member 3        |
-| 4      | Real-Time Broadcasting | ✅ Complete     | Member 4        |
-| 5      | Chat System            | ✅ Complete     | Member 5        |
-
-## � Documentation
-
-- **[MODULE2_DOCUMENTATION.md](MODULE2_DOCUMENTATION.md)**: Comprehensive Module 2 documentation
-
-  - Protocol specification
-  - Usage examples
-  - Integration guide
-  - File persistence details
-  - Testing scenarios
-
-- **USAGE.md**: General usage guide and testing scenarios
-- **config.properties**: Server configuration options
+**Version**: 2.0.0  
+**Last Updated**: November 2025

@@ -2,7 +2,7 @@ package main.test;
 
 import main.model.Auction;
 import main.server.AuctionManager;
-import main.util.AuctionFileStorage;
+import main.util.DatabaseManager;
 
 /**
  * Test class for Module 2: Auction Creation
@@ -85,46 +85,48 @@ public class AuctionCreationTest {
     }
 
     private static void testFilePersistence() {
-        System.out.println("TEST 2: File Persistence");
+        System.out.println("TEST 2: Database Persistence");
         System.out.println("----------------------------------");
 
-        AuctionFileStorage storage = AuctionFileStorage.getInstance();
+        DatabaseManager dbManager = DatabaseManager.getInstance();
 
         // Create a test auction
-        Auction testAuction = new Auction(
-                "test-persistence-1",
+        Auction testAuction = dbManager.createAuction(
                 "Test Item",
-                "Testing file persistence",
+                "Testing database persistence",
                 "testseller",
                 100.00,
                 30,
                 "test");
 
-        // Save to file
-        boolean saved = storage.saveAuction(testAuction);
-        assert saved : "Failed to save auction!";
-        System.out.println("✓ Auction saved to file");
+        assert testAuction != null : "Failed to create auction!";
+        System.out.println("✓ Auction saved to database: " + testAuction.getAuctionId());
 
-        // Load from file
-        Auction loaded = storage.loadAuction("test-persistence-1");
+        // Load from database
+        Auction loaded = dbManager.loadAuction(testAuction.getAuctionId());
         assert loaded != null : "Failed to load auction!";
         assert loaded.getItemName().equals("Test Item") : "Loaded data mismatch!";
-        System.out.println("✓ Auction loaded from file");
+        System.out.println("✓ Auction loaded from database");
 
-        // Export to text
-        storage.exportAuctionToText(testAuction);
-        System.out.println("✓ Auction exported to text file");
+        // Test bid saving
+        main.model.Bid testBid = new main.model.Bid(testAuction.getAuctionId(), "testuser", 150.00);
+        boolean bidSaved = dbManager.saveBid(testBid);
+        assert bidSaved : "Failed to save bid!";
+        System.out.println("✓ Bid saved to database");
+
+        // Load bids
+        java.util.List<main.model.Bid> bids = dbManager.loadBidsByAuction(testAuction.getAuctionId());
+        assert bids.size() > 0 : "Failed to load bids!";
+        System.out.println("✓ Bids loaded from database: " + bids.size());
 
         // Create backup
-        storage.createBackup();
-        System.out.println("✓ Backup created");
+        String backupPath = "data/backups/test_backup_" + System.currentTimeMillis() + ".db";
+        dbManager.backupDatabase(backupPath);
+        System.out.println("✓ Database backup created");
 
-        // Clean up test file
-        storage.deleteAuction("test-persistence-1");
+        // Clean up test data
+        dbManager.deleteAuction(testAuction.getAuctionId());
         System.out.println("✓ Test auction cleaned up");
-
-        // Print storage stats
-        storage.printStorageStats();
 
         System.out.println("✓ Test 2 PASSED\n");
     }

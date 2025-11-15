@@ -1,14 +1,15 @@
 package main.server;
 
-import main.model.User;
-import main.model.Message;
-import main.model.Command;
-import main.util.WebSocketUtil;
-import main.util.ThreadPoolManager;
-
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import main.model.ChatMessage;
+import main.model.Command;
+import main.model.Message;
+import main.model.User;
+import main.util.DatabaseManager;
+import main.util.ThreadPoolManager;
+import main.util.WebSocketUtil;
 
 /**
  * Handles individual client connections using WebSocket protocol
@@ -235,34 +236,103 @@ public class ClientHandler implements Runnable {
     private void handlePrivateMessage(Command command) {
         Message privateMessage = chatBot.processCommand(command, user.getUsername());
         
+        System.out.println("[PrivateMsg] Processing private message from: " + user.getUsername());
+        System.out.println("[PrivateMsg] Target user: " + privateMessage.getTargetUser());
+        System.out.println("[PrivateMsg] Message content: " + privateMessage.getContent());
+        
         if (privateMessage.getTargetUser() != null) {
             // Send to target user
             ClientHandler targetHandler = userManager.getClientHandler(privateMessage.getTargetUser());
+            
             if (targetHandler != null) {
-                targetHandler.sendMessage("[Private from " + user.getUsername() + "]: " + 
-                    privateMessage.getContent().replace("[Private] ", ""));
+                System.out.println("[PrivateMsg] ✅ Target handler found for: " + privateMessage.getTargetUser());
                 
-                // Confirm to sender
-                sendMessage("[Private to " + privateMessage.getTargetUser() + "]: " + 
-                    privateMessage.getContent().replace("[Private] ", ""));
+                // Extract message content without [Private] prefix but keep auction tags
+                String content = privateMessage.getContent();
+                if (content.startsWith("[Private] ")) {
+                    content = content.substring(10); // Remove "[Private] " (10 characters)
+                }
+                
+                System.out.println("[PrivateMsg] From: " + user.getUsername() + " To: " + 
+                    privateMessage.getTargetUser() + " Content: " + content);
+                
+                // Extract auction ID if present and save to database
+                String auctionId = extractAuctionId(content);
+                if (auctionId != null) {
+                    System.out.println("[PrivateMsg] Auction ID extracted: " + auctionId);
+                    
+                    // Remove [Auction:ID] tag from content for storage
+                    String cleanContent = content.replaceFirst("\\[Auction:" + auctionId + "\\]\\s*", "");
+                    
+                    ChatMessage chatMessage = new ChatMessage(
+                        auctionId,
+                        user.getUsername(),
+                        privateMessage.getTargetUser(),
+                        cleanContent,
+                        System.currentTimeMillis()
+                    );
+                    
+                    DatabaseManager.getInstance().saveChatMessage(chatMessage);
+                    System.out.println("[PrivateMsg] ✅ Saved to database: auction=" + auctionId + ", from=" + 
+                        user.getUsername() + ", to=" + privateMessage.getTargetUser());
+                } else {
+                    System.out.println("[PrivateMsg] ⚠️ No auction ID found in message");
+                }
+                
+                // Send to recipient
+                String toRecipient = "[Private from " + user.getUsername() + "] " + content;
+                System.out.println("[PrivateMsg] 📤 Sending to recipient: " + toRecipient);
+                targetHandler.sendMessage(toRecipient);
+                
+                // Confirm to sender (echo)
+                String toSender = "[Private to " + privateMessage.getTargetUser() + "] " + content;
+                System.out.println("[PrivateMsg] 📤 Sending echo to sender: " + toSender);
+                sendMessage(toSender);
+                
+                System.out.println("[PrivateMsg] ✅ Message delivery complete");
+            } else {
+                System.out.println("[PrivateMsg] ❌ Target handler NOT found for: " + privateMessage.getTargetUser());
+                System.out.println("[PrivateMsg] Available users: " + userManager.getAllUsers());
+                sendMessage("[Error] User '" + privateMessage.getTargetUser() + "' is not online");
             }
         } else {
+            System.out.println("[PrivateMsg] ❌ No target user specified");
             // Error message from bot
             sendMessage(formatMessageForDisplay(privateMessage));
         }
     }
     
+    /**
+     * Extract auction ID from message content
+     */
+    private String extractAuctionId(String content) {
+        if (content == null) return null;
+        
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\[Auction:([^\\]]+)\\]");
+        java.util.regex.Matcher matcher = pattern.matcher(content);
+        
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
+    }
+    
     public void sendMessage(String message) {
         if (!isConnected || !webSocketHandshakeComplete) {
+            System.out.println("[ClientHandler] ❌ Cannot send message - not connected or handshake not complete");
             return;
         }
         
         try {
+            System.out.println("[ClientHandler] 📨 Sending to " + 
+                (user != null ? user.getUsername() : "unknown") + ": " + message);
             byte[] frame = WebSocketUtil.encodeTextFrame(message);
             outputStream.write(frame);
             outputStream.flush();
+            System.out.println("[ClientHandler] ✅ Message sent successfully to " + 
+                (user != null ? user.getUsername() : "unknown"));
         } catch (IOException e) {
-            System.err.println("Error sending message to " + 
+            System.err.println("[ClientHandler] ❌ Error sending message to " + 
                 (user != null ? user.getUsername() : "unknown user") + ": " + e.getMessage());
             handleClientDisconnect();
         }

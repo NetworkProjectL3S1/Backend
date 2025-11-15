@@ -1,8 +1,8 @@
 package main.model;
 
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.io.Serializable;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Auction implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -47,6 +47,27 @@ public class Auction implements Serializable {
         this.createdTime = System.currentTimeMillis();
         this.duration = durationMinutes * 60 * 1000; // convert minutes to milliseconds
         this.endTime = this.createdTime + this.duration;
+        this.status = AuctionStatus.ACTIVE;
+        this.category = category;
+        this.watchers = new CopyOnWriteArrayList<>();
+    }
+
+    /**
+     * Constructor for loading from database with preserved timestamps
+     */
+    public Auction(String auctionId, String itemName, String itemDescription,
+            String sellerId, double basePrice, long createdTime, long endTime, 
+            long duration, String category) {
+        this.auctionId = auctionId;
+        this.itemName = itemName;
+        this.itemDescription = itemDescription;
+        this.sellerId = sellerId;
+        this.basePrice = basePrice;
+        this.currentHighestBid = basePrice;
+        this.currentHighestBidder = null;
+        this.createdTime = createdTime; // Use stored timestamp
+        this.endTime = endTime; // Use stored timestamp
+        this.duration = duration;
         this.status = AuctionStatus.ACTIVE;
         this.category = category;
         this.watchers = new CopyOnWriteArrayList<>();
@@ -129,6 +150,14 @@ public class Auction implements Serializable {
     // --- Setters ---
     public void setStatus(AuctionStatus status) {
         this.status = status;
+    }
+
+    public void setCurrentHighestBid(double bid) {
+        this.currentHighestBid = bid;
+    }
+
+    public void setCurrentHighestBidder(String bidder) {
+        this.currentHighestBidder = bidder;
     }
 
     // --- Bid Logic ---
