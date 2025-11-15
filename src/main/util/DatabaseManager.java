@@ -695,14 +695,13 @@ public class DatabaseManager {
         System.out.println("[DatabaseManager]   Highest Bidder from DB: " + highestBidder);
         System.out.println("[DatabaseManager]   Highest Bid from DB: $" + highestBid);
         
+        // Restore bid data directly using setters instead of placeBid()
+        // This avoids issues with status checks in placeBid()
         if (highestBidder != null && !highestBidder.isEmpty()) {
-            Bid bid = new Bid(
-                auction.getAuctionId(),
-                highestBidder,
-                highestBid
-            );
-            auction.placeBid(bid);
+            auction.setCurrentHighestBidder(highestBidder);
+            auction.setCurrentHighestBid(highestBid);
             System.out.println("[DatabaseManager]   ✅ Bid restored to auction object");
+            System.out.println("[DatabaseManager]   ✅ Bidder set to: " + auction.getCurrentHighestBidder());
         } else {
             System.out.println("[DatabaseManager]   ⚠️ No bidder found in database");
         }
